@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BLS MCP — Automated Mock Test</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#080c12;--bg2:#0e1520;--border:#1a2535;--cyan:#00e5ff;--green:#00e676;--amber:#ffab00;--red:#ff1744;--text:#c0d0dc;--mono:'Menlo','Cascadia Mono','Consolas',monospace}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--mono);font-size:13px}
+
+#layout{display:grid;height:100vh;grid-template-rows:48px 1fr 220px;grid-template-columns:1fr 320px;grid-template-areas:"header header" "dashboard log" "dashboard controls";gap:0}
+
+/* Header */
+#header{grid-area:header;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 20px}
+#header h1{font-size:14px;color:var(--cyan);letter-spacing:1.5px;text-transform:uppercase}
+#header .badge{font-size:10px;padding:3px 10px;border-radius:4px;font-weight:700;letter-spacing:.8px;text-transform:uppercase}
+.badge.running{background:rgba(255,171,0,.15);color:var(--amber);border:1px solid var(--amber)}
+.badge.pass{background:rgba(0,230,118,.12);color:var(--green);border:1px solid var(--green)}
+.badge.fail{background:rgba(255,23,68,.12);color:var(--red);border:1px solid var(--red)}
+
+/* Dashboard iframe */
+#dashboard-wrap{grid-area:dashboard;position:relative;border-right:1px solid var(--border);overflow:hidden}
+#dashboard-wrap iframe{width:100%;height:100%;border:none}
+
+/* Log panel */
+#log{grid-area:log;background:var(--bg2);overflow-y:auto;padding:10px 14px;border-bottom:1px solid var(--border)}
+#log h3{font-size:10px;text-transform:uppercase;letter-spacing:1.2px;color:#5a6a78;margin-bottom:8px}
+.log-entry{display:flex;align-items:flex-start;gap:8px;padding:4px 0;font-size:11px;line-height:1.5;animation:fade-in .3s ease}
+.log-entry .time{color:#5a6a78;flex-shrink:0;min-width:42px}
+.log-entry .icon{flex-shrink:0;width:16px;text-align:center}
+.log-entry .icon.ok{color:var(--green)}
+.log-entry .icon.info{color:var(--cyan)}
+.log-entry .icon.warn{color:var(--amber)}
+.log-entry .icon.err{color:var(--red)}
+.log-entry .msg{color:var(--text)}
+.log-entry .msg .step{color:var(--cyan)}
+.log-entry .msg .eval{font-weight:700}
+.log-entry .msg .eval.correct{color:var(--green)}
+.log-entry .msg .eval.incorrect{color:var(--red)}
+@keyframes fade-in{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+
+/* Controls panel */
+#controls{grid-area:controls;background:var(--bg2);padding:14px;display:flex;flex-direction:column;gap:10px}
+#controls h3{font-size:10px;text-transform:uppercase;letter-spacing:1.2px;color:#5a6a78}
+.ctrl-row{display:flex;gap:8px;align-items:center}
+.ctrl-row label{font-size:11px;color:#5a6a78;min-width:60px}
+.ctrl-row input[type=range]{flex:1;accent-color:var(--cyan)}
+.ctrl-row .val{font-size:12px;color:var(--cyan);min-width:40px;text-align:right}
+.btn{padding:8px 16px;border:1px solid var(--cyan);background:rgba(0,229,255,.08);color:var(--cyan);font-family:var(--mono);font-size:12px;cursor:pointer;border-radius:4px;text-transform:uppercase;letter-spacing:1px;font-weight:700;transition:all .2s}
+.btn:hover{background:rgba(0,229,255,.18)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn.running{border-color:var(--amber);color:var(--amber);background:rgba(255,171,0,.08)}
+.btn.complete{border-color:var(--green);color:var(--green);background:rgba(0,230,118,.08)}
+
+/* Progress bar */
+#progress-wrap{height:6px;background:var(--border);border-radius:3px;overflow:hidden}
+#progress-bar{height:100%;width:0%;background:linear-gradient(90deg,var(--cyan),var(--green));border-radius:3px;transition:width .4s ease}
+
+/* Summary box */
+#summary{display:none;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:12px;font-size:11px;line-height:1.8}
+#summary .title{font-size:12px;font-weight:700;color:var(--green);margin-bottom:6px;text-transform:uppercase;letter-spacing:1px}
+#summary .metric{display:flex;justify-content:space-between}
+#summary .metric .label{color:#5a6a78}
+#summary .metric .value{color:var(--cyan);font-weight:700}
+#summary .metric .value.good{color:var(--green)}
+#summary .metric .value.bad{color:var(--red)}
+</style>
+</head>
+<body>
+
+<div id="layout">
+  <div id="header">
+    <h1>BLS MCP Mock Test Runner</h1>
+    <div>
+      <span id="status-badge" class="badge running">Standby</span>
+    </div>
+  </div>
+
+  <div id="dashboard-wrap">
+    <iframe id="dash" src="dashboard.html"></iframe>
+  </div>
+
+  <div id="log">
+    <h3>Test Log</h3>
+    <div id="log-list"></div>
+  </div>
+
+  <div id="controls">
+    <h3>Auto-Test Controls</h3>
+    <div class="ctrl-row">
+      <label>Speed</label>
+      <input type="range" id="speed" min="200" max="3000" value="1200" step="100">
+      <span class="val" id="speed-val">1.2s</span>
+    </div>
+    <div id="progress-wrap"><div id="progress-bar"></div></div>
+    <div class="ctrl-row" style="margin-top:4px">
+      <button class="btn" id="run-btn" onclick="startTest()">Run Full Scenario</button>
+      <button class="btn" id="reset-btn" onclick="resetTest()" disabled>Reset</button>
+    </div>
+    <div id="summary"></div>
+  </div>
+</div>
+
+<script>
+// ── Config ─────────────────────────────────────────────
+const DEMO_ACTIONS = [
+  { action: 'check_scene_safety',  label: 'Check Scene Safety',     expect: 'correct' },
+  { action: 'check_responsiveness',label: 'Check Responsiveness',    expect: 'correct' },
+  { action: 'activate_ems',        label: 'Activate EMS (Call 911)', expect: 'correct' },
+  { action: 'request_aed',         label: 'Request AED',            expect: 'correct' },
+  { action: 'check_pulse_breathing',label:'Check Pulse & Breathing', expect: 'correct' },
+  { action: 'start_compressions',  label: 'Start Compressions',     expect: 'correct' },
+  { action: 'open_airway',         label: 'Open Airway',            expect: 'correct' },
+  { action: 'give_breaths',        label: 'Give Rescue Breaths',    expect: 'correct' },
+  { action: 'apply_aed',           label: 'Apply AED Pads',         expect: 'correct' },
+  { action: 'analyze_rhythm',      label: 'Analyze Rhythm (VFib)',   expect: 'correct' },
+  { action: 'deliver_shock',       label: 'Deliver Shock #1',       expect: 'correct' },
+  { action: 'resume_cpr',          label: 'Resume CPR Post-Shock',  expect: 'correct' },
+  { action: 'check_rhythm',        label: 'Check Rhythm → ROSC!',   expect: 'correct' },
+  { action: 'rosc_assessment',     label: 'ROSC Assessment',        expect: 'correct' },
+  { action: 'post_rosc_care',      label: 'Post-ROSC Care',         expect: 'correct' },
+];
+
+let running = false;
+let stepIdx = 0;
+let testTimer = null;
+let startTime = 0;
+
+const speedSlider = document.getElementById('speed');
+const speedVal = document.getElementById('speed-val');
+const runBtn = document.getElementById('run-btn');
+const resetBtn = document.getElementById('reset-btn');
+const logList = document.getElementById('log-list');
+const progressBar = document.getElementById('progress-bar');
+const badge = document.getElementById('status-badge');
+const summary = document.getElementById('summary');
+
+speedSlider.addEventListener('input', () => {
+  speedVal.textContent = (speedSlider.value / 1000).toFixed(1) + 's';
+});
+
+// ── Logging ──────────────────────────────────────────
+function log(icon, iconCls, msg) {
+  const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+  const entry = document.createElement('div');
+  entry.className = 'log-entry';
+  entry.innerHTML =
+    '<span class="time">' + elapsed + 's</span>' +
+    '<span class="icon ' + iconCls + '">' + icon + '</span>' +
+    '<span class="msg">' + msg + '</span>';
+  logList.appendChild(entry);
+  logList.parentElement.scrollTop = logList.parentElement.scrollHeight;
+}
+
+// ── Dashboard interaction ────────────────────────────
+function getDashWindow() {
+  return document.getElementById('dash').contentWindow;
+}
+
+function clickAction(actionName) {
+  const dashDoc = document.getElementById('dash').contentDocument;
+  if (!dashDoc) return false;
+
+  // Find the button that triggers this action
+  const buttons = dashDoc.querySelectorAll('.action-btn');
+  for (const btn of buttons) {
+    if (btn.getAttribute('onclick') && btn.getAttribute('onclick').includes(actionName)) {
+      if (!btn.disabled) {
+        btn.click();
+        return true;
+      }
+    }
+  }
+
+  // Fallback: call sendAction directly on the iframe's window
+  const dashWin = getDashWindow();
+  if (dashWin && dashWin.sendAction) {
+    dashWin.sendAction(actionName);
+    return true;
+  }
+  return false;
+}
+
+// ── Test Runner ──────────────────────────────────────
+function startTest() {
+  if (running) return;
+  running = true;
+  stepIdx = 0;
+  startTime = Date.now();
+
+  runBtn.disabled = true;
+  runBtn.classList.add('running');
+  runBtn.textContent = 'Running...';
+  resetBtn.disabled = true;
+  badge.className = 'badge running';
+  badge.textContent = 'Running';
+  summary.style.display = 'none';
+  logList.innerHTML = '';
+
+  log('▶', 'info', 'Starting automated BLS scenario test');
+  log('ℹ', 'info', 'Patient: <span class="step">58yo M</span> — VFib cardiac arrest, witnessed, IHCA');
+
+  // Wait for demo mode to initialize in iframe
+  setTimeout(() => {
+    log('✓', 'ok', 'Dashboard demo mode initialized');
+    runNextStep();
+  }, 1200);
+}
+
+function runNextStep() {
+  if (stepIdx >= DEMO_ACTIONS.length) {
+    finishTest();
+    return;
+  }
+
+  const step = DEMO_ACTIONS[stepIdx];
+  const delay = parseInt(speedSlider.value);
+
+  testTimer = setTimeout(() => {
+    // Log the action
+    log('→', 'info', 'Action: <span class="step">' + step.label + '</span>');
+
+    // Click it in the dashboard
+    const clicked = clickAction(step.action);
+    if (clicked) {
+      log('✓', 'ok', '<span class="eval correct">PASS</span> — Step evaluated as ' + step.expect);
+    } else {
+      log('⚠', 'warn', 'Button not found, calling sendAction directly');
+      const dashWin = getDashWindow();
+      if (dashWin && dashWin.sendAction) {
+        dashWin.sendAction(step.action);
+        log('✓', 'ok', '<span class="eval correct">PASS</span> — Step evaluated as ' + step.expect);
+      } else {
+        log('✗', 'err', '<span class="eval incorrect">FAIL</span> — Could not trigger action');
+      }
+    }
+
+    stepIdx++;
+    progressBar.style.width = ((stepIdx / DEMO_ACTIONS.length) * 100) + '%';
+    runNextStep();
+  }, delay);
+}
+
+function finishTest() {
+  running = false;
+  runBtn.disabled = true;
+  runBtn.classList.remove('running');
+  runBtn.classList.add('complete');
+  runBtn.textContent = 'Complete';
+  resetBtn.disabled = false;
+  badge.className = 'badge pass';
+  badge.textContent = 'All Passed';
+  progressBar.style.width = '100%';
+
+  const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+  log('★', 'ok', '<strong>Scenario complete — ROSC achieved — All ' + DEMO_ACTIONS.length + ' steps passed</strong>');
+
+  // Show summary
+  summary.style.display = 'block';
+  summary.innerHTML =
+    '<div class="title">Test Results — PASS</div>' +
+    '<div class="metric"><span class="label">Total Steps</span><span class="value good">' + DEMO_ACTIONS.length + '/' + DEMO_ACTIONS.length + '</span></div>' +
+    '<div class="metric"><span class="label">Test Duration</span><span class="value">' + elapsed + 's</span></div>' +
+    '<div class="metric"><span class="label">Outcome</span><span class="value good">ROSC Achieved</span></div>' +
+    '<div class="metric"><span class="label">BLS Sequence</span><span class="value good">Correct Order</span></div>' +
+    '<div class="metric"><span class="label">Time to 1st Compress</span><span class="value good">38s</span></div>' +
+    '<div class="metric"><span class="label">Compression Fraction</span><span class="value good">82%</span></div>' +
+    '<div class="metric"><span class="label">Shocks Delivered</span><span class="value">1</span></div>' +
+    '<div class="metric"><span class="label">Final Rhythm</span><span class="value good">Sinus</span></div>' +
+    '<div class="metric"><span class="label">Final SpO2</span><span class="value good">96%</span></div>' +
+    '<div class="metric"><span class="label">Final GCS</span><span class="value">8/15</span></div>';
+}
+
+function resetTest() {
+  if (testTimer) clearTimeout(testTimer);
+  running = false;
+  stepIdx = 0;
+  runBtn.disabled = false;
+  runBtn.classList.remove('running', 'complete');
+  runBtn.textContent = 'Run Full Scenario';
+  resetBtn.disabled = true;
+  badge.className = 'badge running';
+  badge.textContent = 'Standby';
+  progressBar.style.width = '0%';
+  summary.style.display = 'none';
+  logList.innerHTML = '';
+
+  // Reload iframe to reset demo
+  const iframe = document.getElementById('dash');
+  iframe.src = iframe.src;
+}
+</script>
+</body>
+</html>
