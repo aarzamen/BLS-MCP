@@ -15,6 +15,9 @@ import { handleSubmitAction } from "./tools/submit-action.js";
 import { handleUpdatePatient } from "./tools/update-patient.js";
 import { handleGetState } from "./tools/get-state.js";
 import { handleEndScenario, setStorageManager } from "./tools/end-scenario.js";
+import { handleSearchScenarios, setSearchStorageManager } from "./tools/search-scenarios.js";
+import { handleGetStudentProgress, setProgressStorageManager } from "./tools/get-student-progress.js";
+import { handleCompareScenarios, setCompareStorageManager } from "./tools/compare-scenarios.js";
 import { StorageManager } from "./storage/persistence.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -23,6 +26,9 @@ const __dirname = dirname(__filename);
 // Initialize storage and wire into tools
 export const storageManager = new StorageManager(join(__dirname, "..", "data"));
 setStorageManager(storageManager);
+setSearchStorageManager(storageManager);
+setProgressStorageManager(storageManager);
+setCompareStorageManager(storageManager);
 
 function loadDashboardHtml(): string {
   try {
@@ -152,6 +158,53 @@ server.tool(
   "End the scenario and generate a structured debrief including BLS assessment card, quality metrics, and teaching points.",
   endScenarioParams,
   (args) => handleEndScenario(args as Record<string, unknown>)
+);
+
+// ── Tool: search_scenarios ─────────────────────────────────────────────────
+
+const searchScenariosParams = {
+  student_id: z.string().optional().describe("Filter by student"),
+  date_after: z.string().optional().describe("ISO date — scenarios after this date"),
+  date_before: z.string().optional().describe("ISO date — scenarios before this date"),
+  outcome: z.enum(["rosc", "ongoing_cpr", "terminated", "handoff_to_als"]).optional(),
+  grade: z.enum(["Competent", "Needs Practice", "Specific Deficiency"]).optional(),
+  scenario_type: z.string().optional(),
+  has_notes: z.boolean().optional().describe("Filter to scenarios with instructor notes"),
+  top_k: z.number().optional().describe("Max results to return. Default 10."),
+};
+
+server.tool(
+  "search_scenarios",
+  "Search past BLS training scenarios. Filter by student, date range, outcome, grade, or scenario type. Returns summary metadata, not full scenario state.",
+  searchScenariosParams,
+  (args) => handleSearchScenarios(args as Record<string, unknown>)
+);
+
+// ── Tool: get_student_progress ────────────────────────────────────────────
+
+const getStudentProgressParams = {
+  student_id: z.string().describe("Student identifier"),
+};
+
+server.tool(
+  "get_student_progress",
+  "Track a student's BLS performance across all training sessions. Returns longitudinal metrics, trend analysis, common errors, and identified weak areas.",
+  getStudentProgressParams,
+  (args) => handleGetStudentProgress(args as Record<string, unknown>)
+);
+
+// ── Tool: compare_scenarios ───────────────────────────────────────────────
+
+const compareScenariosParams = {
+  case_id_a: z.string(),
+  case_id_b: z.string(),
+};
+
+server.tool(
+  "compare_scenarios",
+  "Compare quality metrics between two BLS scenarios. Useful for tracking student improvement over time or comparing two students on the same case type.",
+  compareScenariosParams,
+  (args) => handleCompareScenarios(args as Record<string, unknown>)
 );
 
 // ── UI Resource ───────────────────────────────────────────────────────────
