@@ -135,6 +135,38 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--m
 /* ── Demo banner ─────────────────────────────────────────── */
 #demo-banner{display:none;position:fixed;top:46px;right:14px;font-size:9px;text-transform:uppercase;letter-spacing:1px;padding:2px 8px;border-radius:3px;background:var(--amber-dim);color:var(--amber);border:1px solid var(--amber);z-index:50}
 body.demo-mode #demo-banner{display:block}
+
+/* ── Tab Toggle ─────────────────────────────────────────── */
+.tab-bar{display:flex;gap:0;border-bottom:1px solid var(--border)}
+.tab-btn{font-family:var(--mono);font-size:10px;padding:6px 14px;background:none;border:none;border-bottom:2px solid transparent;color:var(--text-dim);cursor:pointer;text-transform:uppercase;letter-spacing:.8px;transition:all .15s}
+.tab-btn:hover{color:var(--text)}
+.tab-btn.active{color:var(--cyan);border-bottom-color:var(--cyan)}
+
+/* ── History Panel ──────────────────────────────────────── */
+#history-panel{display:none;grid-area:center;background:var(--bg);overflow-y:auto;padding:0}
+#history-panel.visible{display:block}
+.history-list{display:flex;flex-direction:column;gap:1px;background:var(--border)}
+.history-entry{background:var(--bg2);padding:8px 12px;cursor:pointer;transition:background .15s;display:grid;grid-template-columns:1fr auto;gap:6px;align-items:center}
+.history-entry:hover{background:var(--bg3)}
+.history-entry .he-header{display:flex;gap:10px;align-items:center;font-size:11px}
+.history-entry .he-date{color:var(--text-dim);min-width:80px}
+.history-entry .he-type{color:var(--cyan)}
+.history-entry .he-student{color:var(--text-dim)}
+.history-entry .he-grade{font-size:10px;font-weight:700;padding:1px 6px;border-radius:2px}
+.he-grade.Competent{color:var(--green);background:rgba(0,230,118,.1)}
+.he-grade.Needs{color:var(--amber);background:rgba(255,171,0,.1)}
+.he-grade.Specific{color:var(--red);background:rgba(255,23,68,.1)}
+.history-entry .he-metrics{display:flex;gap:12px;font-size:10px;color:var(--text-dim);margin-top:3px}
+.he-metrics span{color:var(--cyan)}
+.history-detail{display:none;background:var(--bg);padding:8px 12px;border-left:2px solid var(--cyan);margin-left:8px;font-size:11px}
+.history-detail.visible{display:block}
+.history-detail h4{color:var(--cyan);font-size:10px;text-transform:uppercase;margin:6px 0 3px}
+.history-detail .hd-tl{color:var(--text-dim);padding:1px 0}
+
+/* ── Audio Controls ─────────────────────────────────────── */
+#audio-toggle{font-family:var(--mono);font-size:10px;padding:2px 8px;border:1px solid var(--border);border-radius:3px;background:var(--bg3);color:var(--text-dim);cursor:pointer;transition:all .15s}
+#audio-toggle:hover{border-color:var(--cyan-dim)}
+#audio-toggle.muted{color:var(--red);border-color:var(--red-dim)}
 </style>
 </head>
 <body>
@@ -145,6 +177,7 @@ body.demo-mode #demo-banner{display:block}
   <header id="header">
     <h1>BLS.ai Scenario Trainer</h1>
     <div class="header-right">
+      <button id="audio-toggle" onclick="toggleAudio()" title="Toggle AED audio and metronome">SND ON</button>
       <span id="elapsed-timer">00:00</span>
       <span id="status-badge" class="status-badge active">ACTIVE</span>
     </div>
@@ -157,10 +190,17 @@ body.demo-mode #demo-banner{display:block}
     <div id="patient-info"></div>
   </section>
 
-  <!-- ── Center: Vitals + Metrics ───────────────────────── -->
+  <!-- ── Center: Vitals + Metrics + History ────────────── -->
   <section id="center">
-    <div id="vitals"></div>
-    <div id="metrics"></div>
+    <div class="tab-bar">
+      <button class="tab-btn active" id="tab-scenario" onclick="switchTab('scenario')">Active Scenario</button>
+      <button class="tab-btn" id="tab-history" onclick="switchTab('history')">History</button>
+    </div>
+    <div id="scenario-panel">
+      <div id="vitals"></div>
+      <div id="metrics"></div>
+    </div>
+    <div id="history-panel"></div>
   </section>
 
   <!-- ── Algorithm Tracker ──────────────────────────────── -->
@@ -639,6 +679,198 @@ function esc(s) {
   d.textContent = s;
   return d.innerHTML;
 }
+
+// ═══════════════════════════════════════════════════════════
+//  Tab Switching
+// ═══════════════════════════════════════════════════════════
+
+function switchTab(tab) {
+  document.getElementById('tab-scenario').classList.toggle('active', tab === 'scenario');
+  document.getElementById('tab-history').classList.toggle('active', tab === 'history');
+  document.getElementById('scenario-panel').style.display = tab === 'scenario' ? '' : 'none';
+  document.getElementById('history-panel').style.display = tab === 'history' ? 'block' : 'none';
+  if (tab === 'history') loadHistory();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  History Panel
+// ═══════════════════════════════════════════════════════════
+
+let historyData = [];
+
+function loadHistory() {
+  // Request history from server via postMessage
+  window.parent.postMessage({ type: 'tool_call', tool: 'search_scenarios', args: { top_k: 50 } }, '*');
+  // Also listen for history_data responses
+}
+
+window.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'history_data') {
+    historyData = event.data.scenarios || [];
+    renderHistory();
+  }
+});
+
+function renderHistory() {
+  const panel = document.getElementById('history-panel');
+  if (historyData.length === 0) {
+    panel.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-dim)">No completed scenarios found</div>';
+    return;
+  }
+
+  let html = '<div class="history-list">';
+  historyData.forEach((s, idx) => {
+    const date = new Date(s.date).toLocaleDateString() + ' ' + new Date(s.date).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+    const gradeClass = s.grade === 'Competent' ? 'Competent' : s.grade === 'Needs Practice' ? 'Needs' : 'Specific';
+    const km = s.key_metrics || {};
+    html += '<div class="history-entry" onclick="toggleHistoryDetail(' + idx + ')">' +
+      '<div>' +
+      '<div class="he-header">' +
+      '<span class="he-date">' + date + '</span>' +
+      '<span class="he-type">' + esc(s.scenario_type || 'unknown') + '</span>' +
+      (s.student_id ? '<span class="he-student">' + esc(s.student_id) + '</span>' : '') +
+      '</div>' +
+      '<div class="he-metrics">' +
+      'Outcome: <span>' + esc(s.outcome) + '</span> | ' +
+      'CF: <span>' + (km.compression_fraction != null ? Math.round(km.compression_fraction * 100) + '%' : '--') + '</span> | ' +
+      '1st Comp: <span>' + (km.time_to_first_compression != null ? km.time_to_first_compression + 's' : '--') + '</span> | ' +
+      'Shocks: <span>' + (km.shock_count || 0) + '</span>' +
+      '</div>' +
+      '</div>' +
+      '<span class="he-grade ' + gradeClass + '">' + esc(s.grade) + '</span>' +
+      '</div>' +
+      '<div class="history-detail" id="hd-' + idx + '"></div>';
+  });
+  html += '</div>';
+  panel.innerHTML = html;
+}
+
+function toggleHistoryDetail(idx) {
+  const el = document.getElementById('hd-' + idx);
+  if (el.classList.contains('visible')) {
+    el.classList.remove('visible');
+    el.innerHTML = '';
+    return;
+  }
+  // Request full scenario detail
+  const s = historyData[idx];
+  if (!s) return;
+  el.classList.add('visible');
+  el.innerHTML = '<div style="color:var(--text-dim);font-size:10px;padding:4px">Loading details for ' + esc(s.case_id) + '...</div>';
+  // For demo mode, show what we have
+  el.innerHTML = '<h4>Case: ' + esc(s.case_id) + '</h4>' +
+    '<div>Duration: ' + fmtTime(s.duration_sec || 0) + '</div>' +
+    '<div>Type: ' + esc(s.scenario_type || 'unknown') + '</div>';
+}
+
+// ═══════════════════════════════════════════════════════════
+//  AED Audio Cues & Compression Metronome
+// ═══════════════════════════════════════════════════════════
+
+let audioEnabled = true;
+let audioCtx = null;
+let metronomeInterval = null;
+let lastAudioStep = null;
+
+function toggleAudio() {
+  audioEnabled = !audioEnabled;
+  const btn = document.getElementById('audio-toggle');
+  btn.textContent = audioEnabled ? 'SND ON' : 'SND OFF';
+  btn.classList.toggle('muted', !audioEnabled);
+  if (!audioEnabled) stopMetronome();
+}
+
+function getAudioCtx() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  return audioCtx;
+}
+
+function playClick() {
+  if (!audioEnabled) return;
+  try {
+    const ctx = getAudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.value = 800;
+    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.05);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.05);
+  } catch (e) { /* ignore audio errors */ }
+}
+
+function startMetronome() {
+  if (metronomeInterval) return;
+  // 110 BPM = ~545ms interval
+  metronomeInterval = setInterval(playClick, 545);
+}
+
+function stopMetronome() {
+  if (metronomeInterval) {
+    clearInterval(metronomeInterval);
+    metronomeInterval = null;
+  }
+}
+
+function speakAED(text) {
+  if (!audioEnabled) return;
+  if (!window.speechSynthesis) return;
+  const u = new SpeechSynthesisUtterance(text);
+  u.rate = 0.9;
+  u.pitch = 0.8;
+  u.volume = 0.8;
+  window.speechSynthesis.speak(u);
+}
+
+// Trigger audio based on BLS step changes
+function handleAudioForStep(state) {
+  if (!state) return;
+  const step = state.bls_step;
+  if (step === lastAudioStep) return;
+  lastAudioStep = step;
+
+  // Metronome during compressions
+  const compressing = ['cpr_in_progress', 'cpr_post_shock'].includes(step);
+  if (compressing) {
+    startMetronome();
+  } else {
+    stopMetronome();
+  }
+
+  // AED voice prompts
+  switch (step) {
+    case 'aed_applied':
+      speakAED('AED connected. Do not touch the patient. Analyzing rhythm.');
+      break;
+    case 'rhythm_analysis':
+      const rhythm = state.vitals ? state.vitals.rhythm : '';
+      const shockable = ['VFib','pVT','vfib','pvt'].some(r => (rhythm || '').toLowerCase().includes(r.toLowerCase()));
+      if (shockable) {
+        speakAED('Shock advised. Charging. Stand clear.');
+      } else {
+        speakAED('No shock advised. Resume CPR.');
+      }
+      break;
+    case 'shock_delivered':
+      speakAED('Shock delivered. Resume CPR immediately.');
+      break;
+    case 'rosc':
+      speakAED('Check for signs of circulation.');
+      break;
+  }
+}
+
+// Hook audio into dashboard updates
+const _origUpdateDashboard = updateDashboard;
+updateDashboard = function(state) {
+  _origUpdateDashboard(state);
+  handleAudioForStep(state);
+};
 
 // ═══════════════════════════════════════════════════════════
 //  Demo / Standalone Mode
