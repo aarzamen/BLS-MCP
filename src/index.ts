@@ -18,6 +18,8 @@ import { handleEndScenario, setStorageManager } from "./tools/end-scenario.js";
 import { handleSearchScenarios, setSearchStorageManager } from "./tools/search-scenarios.js";
 import { handleGetStudentProgress, setProgressStorageManager } from "./tools/get-student-progress.js";
 import { handleCompareScenarios, setCompareStorageManager } from "./tools/compare-scenarios.js";
+import { handleGenerateCase, setGenerateCaseStorageManager } from "./tools/generate-case.js";
+import { handleAddInstructorNote, setNoteStorageManager } from "./tools/add-instructor-note.js";
 import { StorageManager } from "./storage/persistence.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -29,6 +31,8 @@ setStorageManager(storageManager);
 setSearchStorageManager(storageManager);
 setProgressStorageManager(storageManager);
 setCompareStorageManager(storageManager);
+setGenerateCaseStorageManager(storageManager);
+setNoteStorageManager(storageManager);
 
 function loadDashboardHtml(): string {
   try {
@@ -205,6 +209,38 @@ server.tool(
   "Compare quality metrics between two BLS scenarios. Useful for tracking student improvement over time or comparing two students on the same case type.",
   compareScenariosParams,
   (args) => handleCompareScenarios(args as Record<string, unknown>)
+);
+
+// ── Tool: generate_case ────────────────────────────────────────────────────
+
+const generateCaseParams = {
+  difficulty: z.enum(["beginner", "intermediate", "advanced"]).describe("beginner: straightforward VFib with early ROSC. intermediate: PEA or rhythm changes. advanced: multiple compressor switches, distractors, prolonged resuscitation."),
+  focus_areas: z.array(z.string()).optional().describe("Specific skills to target, e.g., 'rapid_pulse_check', 'post_shock_resumption', 'compressor_switches', 'minimize_pauses'"),
+  student_id: z.string().optional().describe("If provided, auto-detect focus areas from student's weak_areas in progress data"),
+  scenario_type: z.enum(["witnessed_vfib", "unwitnessed_asystole", "pea_arrest", "respiratory_arrest", "opioid_overdose", "choking_to_arrest", "exercise_related_sca", "maternal_arrest"]).optional().describe("Specific scenario type. If omitted, selected based on focus_areas."),
+  exclude_recent: z.boolean().optional().describe("If true and student_id provided, avoid scenario types the student has done in last 3 sessions"),
+};
+
+server.tool(
+  "generate_case",
+  "Generate structured constraints for a new BLS training case. Returns teaching objectives, difficulty parameters, and focus areas based on student performance data. The host LLM uses this output to create and start a scenario via start_scenario.",
+  generateCaseParams,
+  (args) => handleGenerateCase(args as Record<string, unknown>)
+);
+
+// ── Tool: add_instructor_note ─────────────────────────────────────────────
+
+const addNoteParams = {
+  case_id: z.string(),
+  note: z.string().describe("Instructor observation or teaching note"),
+  category: z.enum(["communication", "leadership", "technique", "teamwork", "clinical_judgment", "general"]).optional().describe("Category for the note. Default: general."),
+};
+
+server.tool(
+  "add_instructor_note",
+  "Add an instructor annotation to a completed scenario. Notes are persistent and searchable. Use for qualitative observations not captured by automated metrics.",
+  addNoteParams,
+  (args) => handleAddInstructorNote(args as Record<string, unknown>)
 );
 
 // ── UI Resource ───────────────────────────────────────────────────────────
