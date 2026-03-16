@@ -106,6 +106,9 @@ export interface ScenarioState {
   cpr_start_times: number[];
   cpr_stop_times: number[];
   last_epi_time: number | null;
+  // v2: student and scenario tracking
+  student_id: string | null;
+  scenario_type: string;
 }
 
 export interface ActionResult {
@@ -114,6 +117,42 @@ export interface ActionResult {
   message: string;
   new_bls_step: BLSStep;
   state: ScenarioState;
+}
+
+export interface ScenarioIndexEntry {
+  case_id: string;
+  date: string;
+  student_id: string | null;
+  outcome: string;
+  grade: string;
+  scenario_type: string;
+  duration_sec: number;
+  key_metrics: {
+    time_to_first_compression: number | null;
+    compression_fraction: number;
+    shock_count: number;
+  };
+}
+
+export interface StoredScenario {
+  state: ScenarioState;
+  debrief: DebriefReport;
+  student_id: string | null;
+  scenario_type: string;
+  instructor_annotations: InstructorAnnotation[];
+}
+
+export interface InstructorAnnotation {
+  timestamp: string;
+  note: string;
+  category: "communication" | "leadership" | "technique" | "teamwork" | "clinical_judgment" | "general";
+}
+
+export interface StudentRecord {
+  student_id: string;
+  scenarios: string[];  // case_ids
+  created_at: string;
+  updated_at: string;
 }
 
 export interface DebriefReport {

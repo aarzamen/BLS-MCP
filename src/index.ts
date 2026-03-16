@@ -14,10 +14,15 @@ import { handleStartScenario } from "./tools/start-scenario.js";
 import { handleSubmitAction } from "./tools/submit-action.js";
 import { handleUpdatePatient } from "./tools/update-patient.js";
 import { handleGetState } from "./tools/get-state.js";
-import { handleEndScenario } from "./tools/end-scenario.js";
+import { handleEndScenario, setStorageManager } from "./tools/end-scenario.js";
+import { StorageManager } from "./storage/persistence.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+
+// Initialize storage and wire into tools
+export const storageManager = new StorageManager(join(__dirname, "..", "data"));
+setStorageManager(storageManager);
 
 function loadDashboardHtml(): string {
   try {
@@ -58,6 +63,8 @@ const startScenarioParams = {
   bystander_cpr: z.boolean().optional(),
   location: z.enum(["OHCA", "IHCA"]).optional(),
   scenario_objectives: z.array(z.string()).optional().describe("Teaching points this scenario is designed to test"),
+  student_id: z.string().optional().describe("Student identifier for longitudinal tracking"),
+  scenario_type: z.string().optional().describe("Scenario category, e.g., witnessed_vfib, pea_arrest, respiratory_arrest"),
 };
 
 server.tool(

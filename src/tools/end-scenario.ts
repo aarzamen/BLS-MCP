@@ -1,27 +1,16 @@
 // ============================================================================
-// Tool: end_scenario — Generate structured debrief
+// Tool: end_scenario — Generate structured debrief and persist
 // ============================================================================
 
 import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
-import { generateDebrief } from "../state/scenario-state.js";
+import { generateDebrief, getScenario } from "../state/scenario-state.js";
+import { StorageManager } from "../storage/persistence.js";
 
-export const END_SCENARIO_TOOL = {
-  name: "end_scenario",
-  description:
-    "End the scenario and generate a structured debrief including BLS assessment card, quality metrics, and teaching points.",
-  inputSchema: {
-    type: "object" as const,
-    properties: {
-      case_id: { type: "string" },
-      outcome: {
-        type: "string",
-        enum: ["rosc", "ongoing_cpr", "terminated", "handoff_to_als"],
-      },
-      instructor_notes: { type: "string" },
-    },
-    required: ["case_id", "outcome"],
-  },
-};
+let _storageManager: StorageManager | null = null;
+
+export function setStorageManager(sm: StorageManager): void {
+  _storageManager = sm;
+}
 
 export function handleEndScenario(args: Record<string, unknown>): CallToolResult {
   const caseId = args.case_id as string;
@@ -41,6 +30,14 @@ export function handleEndScenario(args: Record<string, unknown>): CallToolResult
         },
       ],
     };
+  }
+
+  // Persist scenario asynchronously (fire and forget — don't block the response)
+  const state = getScenario(caseId);
+  if (state && _storageManager) {
+    _storageManager
+      .saveScenario(state, debrief, state.student_id, state.scenario_type)
+      .catch((err) => console.error("Failed to persist scenario:", err));
   }
 
   return {

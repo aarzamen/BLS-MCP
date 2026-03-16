@@ -35,6 +35,8 @@ export function createScenario(params: {
   bystander_cpr?: boolean;
   location?: string;
   scenario_objectives?: string[];
+  student_id?: string;
+  scenario_type?: string;
 }): ScenarioState {
   const state: ScenarioState = {
     case_id: params.case_id,
@@ -67,6 +69,8 @@ export function createScenario(params: {
     cpr_start_times: [],
     cpr_stop_times: [],
     last_epi_time: null,
+    student_id: params.student_id ?? null,
+    scenario_type: params.scenario_type ?? "unknown",
   };
 
   scenarios.set(params.case_id, state);
@@ -345,6 +349,8 @@ export function getScenarioForExport(caseId: string) {
     bystander_cpr: state.bystander_cpr,
     location: state.location,
     rosc_achieved: state.rosc_achieved,
+    student_id: state.student_id,
+    scenario_type: state.scenario_type,
     valid_actions: getValidActions(state.bls_step),
     recommended_actions: getRecommendedActions(state.bls_step),
   };

@@ -78,6 +78,8 @@ export function handleStartScenario(args: Record<string, unknown>): CallToolResu
     bystander_cpr: args.bystander_cpr as boolean | undefined,
     location: args.location as string | undefined,
     scenario_objectives: args.scenario_objectives as string[] | undefined,
+    student_id: args.student_id as string | undefined,
+    scenario_type: args.scenario_type as string | undefined,
   });
 
   const exported = getScenarioForExport(state.case_id);
