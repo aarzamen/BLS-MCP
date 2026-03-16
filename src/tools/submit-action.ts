@@ -5,6 +5,7 @@
 import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { processAction, getScenarioForExport } from "../state/scenario-state.js";
 import { BLSAction } from "../types.js";
+import { formatStateSummary } from "./start-scenario.js";
 
 export const SUBMIT_ACTION_TOOL = {
   name: "submit_action",
@@ -78,6 +79,7 @@ export function handleSubmitAction(args: Record<string, unknown>): CallToolResul
             valid_actions: exported?.valid_actions ?? [],
             recommended_actions: exported?.recommended_actions ?? [],
             state: exported,
+            _summary: formatStateSummary(exported),
           },
           null,
           2

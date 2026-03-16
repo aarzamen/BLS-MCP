@@ -4,6 +4,7 @@
 
 import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { getScenarioForExport } from "../state/scenario-state.js";
+import { formatStateSummary } from "./start-scenario.js";
 
 export const GET_STATE_TOOL = {
   name: "get_scenario_state",
@@ -39,8 +40,11 @@ export function handleGetState(args: Record<string, unknown>): CallToolResult {
     content: [
       {
         type: "text",
-        text: JSON.stringify(state, null, 2),
+        text: JSON.stringify({ ...state, _summary: formatStateSummary(state) }, null, 2),
       },
     ],
+    _meta: {
+      ui: { resourceUri: "ui://bls-scenario/dashboard" },
+    },
   };
 }
