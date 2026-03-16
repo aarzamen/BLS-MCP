@@ -37,6 +37,10 @@ export const SUBMIT_ACTION_TOOL = {
           "check_rhythm",
           "rosc_assessment",
           "post_rosc_care",
+          "administer_naloxone",
+          "apply_bvm",
+          "suction_airway",
+          "recovery_position",
         ],
       },
       timestamp_sec: {

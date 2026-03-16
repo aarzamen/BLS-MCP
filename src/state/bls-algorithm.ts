@@ -11,21 +11,24 @@ const VALID_ACTIONS: Record<BLSStep, BLSAction[]> = {
   activate_ems: ["activate_ems", "request_aed"],
   pulse_breathing_check: ["check_pulse_breathing"],
 
-  // Cardiac arrest paths
+  // Cardiac arrest paths (Path A)
   no_pulse_no_breathing: ["start_compressions"],
   no_pulse_breathing: ["start_compressions"],
 
-  // Respiratory arrest path
-  pulse_no_breathing: ["open_airway", "give_breaths"],
+  // Respiratory arrest path (Path B) — initial branch
+  pulse_no_breathing: ["open_airway", "give_breaths", "apply_bvm", "suction_airway"],
 
   cpr_in_progress: [
     "apply_aed",
     "switch_compressor",
     "give_breaths",
+    "apply_bvm",
     "open_airway",
+    "suction_airway",
     "establish_iv",
     "give_epinephrine",
     "advanced_airway",
+    "administer_naloxone",
   ],
 
   aed_applied: ["analyze_rhythm"],
@@ -38,6 +41,7 @@ const VALID_ACTIONS: Record<BLSStep, BLSAction[]> = {
     "check_rhythm",
     "switch_compressor",
     "give_breaths",
+    "apply_bvm",
     "establish_iv",
     "give_epinephrine",
     "give_amiodarone",
@@ -51,16 +55,25 @@ const VALID_ACTIONS: Record<BLSStep, BLSAction[]> = {
     "deliver_shock",
   ],
 
+  // Path B: rescue breathing loop
   rescue_breathing: [
     "give_breaths",
+    "apply_bvm",
     "check_pulse_breathing",
     "open_airway",
+    "suction_airway",
     "advanced_airway",
+    "administer_naloxone",
   ],
 
-  rosc: ["rosc_assessment", "post_rosc_care"],
+  // Path B: reassess after 2-min of rescue breathing
+  rescue_breathing_reassess: [
+    "check_pulse_breathing",
+  ],
 
-  post_rosc_care: ["post_rosc_care"],
+  rosc: ["rosc_assessment", "post_rosc_care", "recovery_position"],
+
+  post_rosc_care: ["post_rosc_care", "recovery_position"],
 
   scenario_complete: [],
 };
@@ -77,14 +90,19 @@ const TRANSITIONS: Record<string, BLSStep> = {
   "no_pulse_breathing:start_compressions": "cpr_in_progress",
   "pulse_no_breathing:open_airway": "rescue_breathing",
   "pulse_no_breathing:give_breaths": "rescue_breathing",
+  "pulse_no_breathing:apply_bvm": "rescue_breathing",
+  "pulse_no_breathing:suction_airway": "rescue_breathing",
 
   "cpr_in_progress:apply_aed": "aed_applied",
   "cpr_in_progress:switch_compressor": "cpr_in_progress",
   "cpr_in_progress:give_breaths": "cpr_in_progress",
+  "cpr_in_progress:apply_bvm": "cpr_in_progress",
   "cpr_in_progress:open_airway": "cpr_in_progress",
+  "cpr_in_progress:suction_airway": "cpr_in_progress",
   "cpr_in_progress:establish_iv": "cpr_in_progress",
   "cpr_in_progress:give_epinephrine": "cpr_in_progress",
   "cpr_in_progress:advanced_airway": "cpr_in_progress",
+  "cpr_in_progress:administer_naloxone": "cpr_in_progress",
 
   "aed_applied:analyze_rhythm": "rhythm_analysis",
 
@@ -96,6 +114,7 @@ const TRANSITIONS: Record<string, BLSStep> = {
   "cpr_post_shock:check_rhythm": "rhythm_check",
   "cpr_post_shock:switch_compressor": "cpr_post_shock",
   "cpr_post_shock:give_breaths": "cpr_post_shock",
+  "cpr_post_shock:apply_bvm": "cpr_post_shock",
   "cpr_post_shock:establish_iv": "cpr_post_shock",
   "cpr_post_shock:give_epinephrine": "cpr_post_shock",
   "cpr_post_shock:give_amiodarone": "cpr_post_shock",
@@ -107,14 +126,22 @@ const TRANSITIONS: Record<string, BLSStep> = {
   "rhythm_check:deliver_shock": "shock_delivered",
 
   "rescue_breathing:give_breaths": "rescue_breathing",
-  "rescue_breathing:check_pulse_breathing": "pulse_breathing_check",
+  "rescue_breathing:apply_bvm": "rescue_breathing",
+  "rescue_breathing:check_pulse_breathing": "rescue_breathing_reassess",
   "rescue_breathing:open_airway": "rescue_breathing",
+  "rescue_breathing:suction_airway": "rescue_breathing",
   "rescue_breathing:advanced_airway": "rescue_breathing",
+  "rescue_breathing:administer_naloxone": "rescue_breathing",
+
+  // Path B reassess: pulse check determines next step (server overrides based on vitals)
+  "rescue_breathing_reassess:check_pulse_breathing": "rescue_breathing",
 
   "rosc:rosc_assessment": "rosc",
   "rosc:post_rosc_care": "post_rosc_care",
+  "rosc:recovery_position": "post_rosc_care",
 
   "post_rosc_care:post_rosc_care": "scenario_complete",
+  "post_rosc_care:recovery_position": "post_rosc_care",
 };
 
 // Action display labels for the timeline
@@ -139,6 +166,10 @@ export const ACTION_LABELS: Record<BLSAction, string> = {
   check_rhythm: "Rhythm check at 2-minute mark",
   rosc_assessment: "Assessing for ROSC",
   post_rosc_care: "Post-ROSC care initiated",
+  administer_naloxone: "Naloxone administered (intranasal/IM)",
+  apply_bvm: "Bag-valve-mask ventilation initiated",
+  suction_airway: "Airway suctioned",
+  recovery_position: "Patient placed in recovery position",
 };
 
 export function getValidActions(step: BLSStep): BLSAction[] {
@@ -223,6 +254,8 @@ export function getRecommendedActions(step: BLSStep): BLSAction[] {
       return ["analyze_rhythm"];
     case "rescue_breathing":
       return ["give_breaths"];
+    case "rescue_breathing_reassess":
+      return ["check_pulse_breathing"];
     case "rosc":
       return ["post_rosc_care"];
     default:

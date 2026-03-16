@@ -92,6 +92,7 @@ const BLS_ACTIONS = [
   "apply_aed", "analyze_rhythm", "deliver_shock", "resume_cpr",
   "switch_compressor", "establish_iv", "give_epinephrine", "give_amiodarone",
   "advanced_airway", "check_rhythm", "rosc_assessment", "post_rosc_care",
+  "administer_naloxone", "apply_bvm", "suction_airway", "recovery_position",
 ] as const;
 
 const submitActionParams = {

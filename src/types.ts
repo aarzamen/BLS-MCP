@@ -41,7 +41,12 @@ export type BLSAction =
   | "advanced_airway"
   | "check_rhythm"
   | "rosc_assessment"
-  | "post_rosc_care";
+  | "post_rosc_care"
+  // Path B: respiratory arrest / opioid overdose
+  | "administer_naloxone"
+  | "apply_bvm"
+  | "suction_airway"
+  | "recovery_position";
 
 export type BLSStep =
   | "scene_safety"
@@ -58,6 +63,7 @@ export type BLSStep =
   | "cpr_post_shock"
   | "rhythm_check"
   | "rescue_breathing"
+  | "rescue_breathing_reassess"
   | "rosc"
   | "post_rosc_care"
   | "scenario_complete";

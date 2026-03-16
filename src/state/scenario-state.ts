@@ -135,7 +135,20 @@ export function processAction(
 
     // Special handling for pulse/breathing check — outcome depends on vitals
     if (action === "check_pulse_breathing") {
-      nextStep = determinePulseCheckOutcome(state.vitals.hr, state.vitals.rr);
+      const pulseOutcome = determinePulseCheckOutcome(state.vitals.hr, state.vitals.rr);
+      // From rescue_breathing_reassess: if still pulse+no breathing, loop back
+      // If pulse lost, go to cardiac arrest path. If breathing returns, go to ROSC.
+      if (state.bls_step === "rescue_breathing" || state.bls_step === "rescue_breathing_reassess") {
+        if (pulseOutcome === "pulse_no_breathing") {
+          nextStep = "rescue_breathing"; // Continue rescue breathing loop
+        } else if (pulseOutcome === "no_pulse_no_breathing" || pulseOutcome === "no_pulse_breathing") {
+          nextStep = pulseOutcome; // Deteriorated — transition to Path A
+        } else {
+          nextStep = "rosc"; // Breathing returned — ROSC
+        }
+      } else {
+        nextStep = pulseOutcome;
+      }
     }
 
     newStep = nextStep ?? state.bls_step;
@@ -281,8 +294,9 @@ export function generateDebrief(
       medications: [
         ...(hasAction("give_epinephrine") ? [`Epinephrine x${metrics.epi_doses}`] : []),
         ...(hasAction("give_amiodarone") ? ["Amiodarone 300mg"] : []),
+        ...(hasAction("administer_naloxone") ? ["Naloxone (intranasal/IM)"] : []),
       ],
-      airway_managed: hasAction("advanced_airway") || hasAction("open_airway"),
+      airway_managed: hasAction("advanced_airway") || hasAction("open_airway") || hasAction("apply_bvm"),
     },
     quality_metrics: metrics,
     timeline: state.timeline,
