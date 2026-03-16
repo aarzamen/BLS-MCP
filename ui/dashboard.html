@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BLS.ai Scenario Trainer</title>
+<style>
+/* ── Reset & Base ────────────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0e14;--bg2:#111820;--bg3:#182028;--border:#1e2a36;
+  --cyan:#00e5ff;--cyan-dim:#00849a;--red:#ff1744;--red-dim:#7a1020;
+  --amber:#ffab00;--amber-dim:#7a5500;--green:#00e676;--green-dim:#00703a;
+  --text:#c8d6e0;--text-dim:#5a6a78;--white:#eaf0f4;
+  --mono:'Menlo','Cascadia Mono','Consolas','Liberation Mono',monospace;
+  --sans:'Inter','SF Pro Display','Segoe UI',system-ui,sans-serif;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--mono);font-size:13px;overflow:hidden}
+
+/* ── Scrollbar ───────────────────────────────────────────── */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:var(--bg2)}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+
+/* ── Keyframes ───────────────────────────────────────────── */
+@keyframes pulse-current{0%,100%{opacity:1}50%{opacity:.45}}
+@keyframes heartbeat{0%,40%,100%{transform:scale(1)}10%{transform:scale(1.15)}25%{transform:scale(1.05)}}
+@keyframes flatline{0%{background-position:0 50%}100%{background-position:200% 50%}}
+@keyframes fade-in{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+@keyframes glow-red{0%,100%{box-shadow:0 0 4px var(--red-dim)}50%{box-shadow:0 0 12px var(--red)}}
+@keyframes chest-compress{0%,100%{transform:scaleY(1)}50%{transform:scaleY(.92)}}
+@keyframes pad-pulse{0%,100%{opacity:.7}50%{opacity:1}}
+@keyframes scan{0%{left:-30%}100%{left:100%}}
+
+/* ── Layout ──────────────────────────────────────────────── */
+#app{display:grid;height:100vh;grid-template-rows:42px 1fr 38px auto;grid-template-columns:220px 1fr 260px;grid-template-areas:
+  "header header header"
+  "patient center algo"
+  "patient actions algo"
+  "timeline timeline timeline";
+  gap:0;overflow:hidden}
+
+/* ── Header ──────────────────────────────────────────────── */
+#header{grid-area:header;display:flex;align-items:center;justify-content:space-between;padding:0 14px;background:var(--bg2);border-bottom:1px solid var(--border);position:relative;overflow:hidden}
+#header::after{content:'';position:absolute;bottom:0;left:0;height:1px;width:30%;background:linear-gradient(90deg,var(--cyan),transparent);animation:scan 4s linear infinite}
+#header h1{font-size:14px;font-weight:700;color:var(--cyan);letter-spacing:1.5px;text-transform:uppercase;font-family:var(--mono)}
+.header-right{display:flex;align-items:center;gap:14px}
+#elapsed-timer{font-size:15px;color:var(--amber);font-weight:700;letter-spacing:1px}
+.status-badge{font-size:10px;padding:2px 8px;border-radius:3px;text-transform:uppercase;font-weight:700;letter-spacing:.8px}
+.status-badge.active{background:var(--green-dim);color:var(--green);border:1px solid var(--green)}
+.status-badge.completed{background:var(--cyan-dim);color:var(--white);border:1px solid var(--cyan)}
+.status-badge.failed{background:var(--red-dim);color:var(--red);border:1px solid var(--red)}
+.status-badge.paused{background:var(--amber-dim);color:var(--amber);border:1px solid var(--amber)}
+
+/* ── Patient Panel ───────────────────────────────────────── */
+#patient{grid-area:patient;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.panel-title{font-size:10px;text-transform:uppercase;letter-spacing:1.2px;color:var(--text-dim);padding:8px 12px 4px;border-bottom:1px solid var(--border)}
+#patient-svg-wrap{flex:1;display:flex;align-items:center;justify-content:center;min-height:0;padding:6px}
+#patient-svg-wrap svg{width:100%;max-height:100%;display:block}
+#patient-info{padding:8px 12px;border-top:1px solid var(--border);font-size:11px;line-height:1.7}
+#patient-info .label{color:var(--text-dim)}
+#patient-info .value{color:var(--white);margin-left:4px}
+
+/* ── Center Area ─────────────────────────────────────────── */
+#center{grid-area:center;display:grid;grid-template-rows:auto 1fr;gap:0;overflow:hidden}
+
+/* ── Vitals Panel ────────────────────────────────────────── */
+#vitals{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--border);border-bottom:1px solid var(--border)}
+.vital-card{background:var(--bg2);padding:8px 10px;text-align:center;position:relative;transition:background .4s}
+.vital-card.critical{background:rgba(255,23,68,.08)}
+.vital-card.warning{background:rgba(255,171,0,.06)}
+.vital-label{font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim);margin-bottom:2px}
+.vital-value{font-size:22px;font-weight:700;transition:color .4s;line-height:1.2}
+.vital-value.critical{color:var(--red)}
+.vital-value.warning{color:var(--amber)}
+.vital-value.normal{color:var(--green)}
+.vital-sub{font-size:9px;color:var(--text-dim);margin-top:1px}
+.vital-value.has-pulse{animation:heartbeat 1s ease-in-out infinite}
+
+/* ── Quality Metrics ─────────────────────────────────────── */
+#metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:1px;background:var(--border);padding:0;border-bottom:1px solid var(--border)}
+.metric-card{background:var(--bg2);padding:6px 10px;display:flex;flex-direction:column;align-items:center;gap:1px}
+.metric-label{font-size:9px;text-transform:uppercase;letter-spacing:.8px;color:var(--text-dim)}
+.metric-value{font-size:16px;font-weight:700;color:var(--cyan)}
+.metric-value.good{color:var(--green)}
+.metric-value.bad{color:var(--red)}
+
+/* ── Algorithm Tracker ───────────────────────────────────── */
+#algo{grid-area:algo;background:var(--bg2);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+#algo-list{flex:1;overflow-y:auto;padding:6px 10px}
+.algo-step{display:flex;align-items:flex-start;gap:8px;padding:4px 0;font-size:11px;line-height:1.4;transition:opacity .3s}
+.algo-step.upcoming{opacity:.4}
+.algo-step.current{opacity:1}
+.algo-step.completed{opacity:.7}
+.algo-step.error{opacity:1}
+.step-icon{flex-shrink:0;width:18px;height:18px;display:flex;align-items:center;justify-content:center;border-radius:50%;font-size:11px;font-weight:700;border:1.5px solid var(--border);color:var(--text-dim)}
+.algo-step.completed .step-icon{border-color:var(--green);color:var(--green);background:rgba(0,230,118,.08)}
+.algo-step.current .step-icon{border-color:var(--cyan);color:var(--cyan);background:rgba(0,229,255,.12);animation:pulse-current 1.5s ease-in-out infinite}
+.algo-step.error .step-icon{border-color:var(--red);color:var(--red);background:rgba(255,23,68,.1)}
+.step-label{color:var(--text)}
+.algo-step.upcoming .step-label{color:var(--text-dim)}
+.algo-step.current .step-label{color:var(--cyan);font-weight:600}
+.algo-step.error .step-label{color:var(--red)}
+
+/* ── Branch indicator ────────────────────────────────────── */
+.algo-branch{font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--amber);padding:6px 0 2px 26px;opacity:.6}
+
+/* ── Actions ─────────────────────────────────────────────── */
+#actions{grid-area:actions;display:flex;flex-wrap:wrap;align-items:center;gap:5px;padding:6px 10px;background:var(--bg2);border-top:1px solid var(--border);border-bottom:1px solid var(--border);overflow-x:auto}
+.action-btn{font-family:var(--mono);font-size:11px;padding:5px 12px;border:1px solid var(--border);border-radius:4px;background:var(--bg3);color:var(--text);cursor:pointer;transition:all .15s;white-space:nowrap}
+.action-btn:hover:not(:disabled){background:#1e2e3c;border-color:var(--cyan-dim);color:var(--white)}
+.action-btn.recommended{border-color:var(--cyan);color:var(--cyan);background:rgba(0,229,255,.08);box-shadow:0 0 6px rgba(0,229,255,.15)}
+.action-btn.recommended:hover{background:rgba(0,229,255,.18)}
+.action-btn:disabled{opacity:.25;cursor:not-allowed}
+.action-btn.completed-action{opacity:.3;text-decoration:line-through;cursor:default}
+
+/* ── Timeline ────────────────────────────────────────────── */
+#timeline{grid-area:timeline;background:var(--bg2);border-top:1px solid var(--border);display:flex;flex-direction:column;max-height:130px}
+#timeline .panel-title{flex-shrink:0}
+#timeline-list{flex:1;overflow-y:auto;padding:4px 12px 6px;display:flex;flex-direction:column;gap:2px}
+.tl-entry{display:flex;gap:8px;font-size:11px;animation:fade-in .3s ease;line-height:1.5}
+.tl-time{color:var(--text-dim);flex-shrink:0;min-width:48px;text-align:right}
+.tl-icon{flex-shrink:0;width:14px;text-align:center}
+.tl-icon.correct{color:var(--green)}
+.tl-icon.incorrect{color:var(--red)}
+.tl-icon.info{color:var(--amber)}
+.tl-desc{color:var(--text)}
+
+/* ── Errors / Good Calls ─────────────────────────────────── */
+#feedback-bar{position:fixed;top:46px;left:50%;transform:translateX(-50%);z-index:100;display:flex;flex-direction:column;align-items:center;gap:4px;pointer-events:none}
+.feedback-toast{padding:4px 14px;border-radius:4px;font-size:11px;font-weight:600;animation:fade-in .25s ease;pointer-events:none}
+.feedback-toast.error{background:var(--red-dim);color:var(--red);border:1px solid var(--red)}
+.feedback-toast.good{background:rgba(0,230,118,.12);color:var(--green);border:1px solid var(--green)}
+
+/* ── Demo banner ─────────────────────────────────────────── */
+#demo-banner{display:none;position:fixed;top:46px;right:14px;font-size:9px;text-transform:uppercase;letter-spacing:1px;padding:2px 8px;border-radius:3px;background:var(--amber-dim);color:var(--amber);border:1px solid var(--amber);z-index:50}
+body.demo-mode #demo-banner{display:block}
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ── Header ─────────────────────────────────────────── -->
+  <header id="header">
+    <h1>BLS.ai Scenario Trainer</h1>
+    <div class="header-right">
+      <span id="elapsed-timer">00:00</span>
+      <span id="status-badge" class="status-badge active">ACTIVE</span>
+    </div>
+  </header>
+
+  <!-- ── Patient Panel ──────────────────────────────────── -->
+  <section id="patient">
+    <div class="panel-title">Patient</div>
+    <div id="patient-svg-wrap"></div>
+    <div id="patient-info"></div>
+  </section>
+
+  <!-- ── Center: Vitals + Metrics ───────────────────────── -->
+  <section id="center">
+    <div id="vitals"></div>
+    <div id="metrics"></div>
+  </section>
+
+  <!-- ── Algorithm Tracker ──────────────────────────────── -->
+  <aside id="algo">
+    <div class="panel-title">BLS Algorithm</div>
+    <div id="algo-list"></div>
+  </aside>
+
+  <!-- ── Actions ────────────────────────────────────────── -->
+  <div id="actions"></div>
+
+  <!-- ── Timeline ───────────────────────────────────────── -->
+  <section id="timeline">
+    <div class="panel-title">Event Log</div>
+    <div id="timeline-list"></div>
+  </section>
+
+</div>
+
+<div id="feedback-bar"></div>
+<div id="demo-banner">DEMO MODE</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+//  BLS.ai Dashboard – self-contained UI
+// ═══════════════════════════════════════════════════════════
+
+// ── Action label map ────────────────────────────────────
+const ACTION_LABELS = {
+  check_scene_safety:      'Check Scene Safety',
+  check_responsiveness:    'Check Responsiveness',
+  activate_ems:            'Activate EMS',
+  request_aed:             'Request AED',
+  check_pulse_breathing:   'Check Pulse & Breathing',
+  start_compressions:      'Start Compressions',
+  open_airway:             'Open Airway',
+  give_breaths:            'Give Breaths',
+  apply_aed:               'Apply AED',
+  analyze_rhythm:          'Analyze Rhythm',
+  deliver_shock:           'Deliver Shock',
+  resume_cpr:              'Resume CPR',
+  switch_compressor:       'Switch Compressor',
+  establish_iv:            'Establish IV/IO',
+  give_epinephrine:        'Give Epinephrine',
+  give_amiodarone:         'Give Amiodarone',
+  advanced_airway:         'Advanced Airway',
+  check_rhythm:            'Check Rhythm (2min)',
+  rosc_assessment:         'Assess for ROSC',
+  post_rosc_care:          'Post-ROSC Care'
+};
+
+// ── BLS algorithm step definitions ──────────────────────
+const ALGO_STEPS_LINEAR = [
+  { id: 'scene_safety',        label: 'Scene Safety' },
+  { id: 'responsiveness',      label: 'Check Responsiveness' },
+  { id: 'activate_ems',        label: 'Activate EMS / Request AED' },
+  { id: 'pulse_breathing_check', label: 'Check Pulse & Breathing' }
+];
+const ALGO_CARDIAC = [
+  { id: 'cpr_in_progress',  label: 'CPR (30:2)' },
+  { id: 'aed_applied',      label: 'AED Applied' },
+  { id: 'rhythm_analysis',  label: 'Rhythm Analysis' },
+  { id: 'shock_delivered',  label: 'Shock Delivered' },
+  { id: 'cpr_post_shock',   label: 'CPR Post-Shock' },
+  { id: 'rhythm_check',     label: 'Rhythm Check (2 min)' }
+];
+const ALGO_RESPIRATORY = [
+  { id: 'rescue_breathing', label: 'Rescue Breathing' }
+];
+const ALGO_TERMINAL = [
+  { id: 'rosc',            label: 'ROSC Achieved' },
+  { id: 'post_rosc_care',  label: 'Post-ROSC Care' }
+];
+
+// ── State ───────────────────────────────────────────────
+let currentState = null;
+let startTimestamp = null;
+let timerInterval = null;
+let demoMode = false;
+let previousErrors = [];
+let previousGoodCalls = [];
+
+// ── Communication ───────────────────────────────────────
+window.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'context_update') {
+    demoMode = false;
+    document.body.classList.remove('demo-mode');
+    updateDashboard(event.data.state);
+  }
+});
+
+function sendAction(action) {
+  if (!currentState) return;
+  window.parent.postMessage({
+    type: 'tool_call',
+    tool: 'submit_action',
+    args: {
+      case_id: currentState.case_id,
+      action: action,
+      timestamp_sec: getElapsedSeconds()
+    }
+  }, '*');
+}
+
+function getElapsedSeconds() {
+  if (currentState && currentState.elapsed_sec != null) return currentState.elapsed_sec;
+  if (!startTimestamp) return 0;
+  return Math.floor((Date.now() - startTimestamp) / 1000);
+}
+
+// ── Timer ───────────────────────────────────────────────
+function startTimer() {
+  if (timerInterval) return;
+  if (!startTimestamp) startTimestamp = Date.now();
+  timerInterval = setInterval(() => {
+    const el = document.getElementById('elapsed-timer');
+    if (!el) return;
+    let sec = getElapsedSeconds();
+    if (currentState && currentState.elapsed_sec != null) {
+      sec = currentState.elapsed_sec + Math.floor((Date.now() - (currentState._receivedAt || Date.now())) / 1000);
+    }
+    el.textContent = fmtTime(sec);
+  }, 250);
+}
+
+function fmtTime(sec) {
+  const m = String(Math.floor(sec / 60)).padStart(2, '0');
+  const s = String(sec % 60).padStart(2, '0');
+  return m + ':' + s;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Render helpers
+// ═══════════════════════════════════════════════════════════
+
+function updateDashboard(state) {
+  if (!state) return;
+  state._receivedAt = Date.now();
+  const prev = currentState;
+  currentState = state;
+
+  if (!startTimestamp && state.elapsed_sec != null) {
+    startTimestamp = Date.now() - state.elapsed_sec * 1000;
+  }
+  startTimer();
+
+  renderHeader(state);
+  renderPatient(state);
+  renderVitals(state);
+  renderMetrics(state);
+  renderAlgo(state);
+  renderActions(state);
+  renderTimeline(state);
+  showFeedback(state, prev);
+}
+
+// ── Header ──────────────────────────────────────────────
+function renderHeader(s) {
+  document.getElementById('elapsed-timer').textContent = fmtTime(s.elapsed_sec || 0);
+  const badge = document.getElementById('status-badge');
+  badge.textContent = (s.status || 'active').toUpperCase();
+  badge.className = 'status-badge ' + (s.status || 'active');
+}
+
+// ── Patient SVG ─────────────────────────────────────────
+function renderPatient(s) {
+  const wrap = document.getElementById('patient-svg-wrap');
+  const step = s.bls_step || '';
+  const isCompressing = ['cpr_in_progress','cpr_post_shock'].includes(step) ||
+    (s.valid_actions && (s.valid_actions.includes('start_compressions') === false) &&
+     s.timeline && s.timeline.some(e => e.action === 'start_compressions'));
+  const compressing = ['cpr_in_progress','cpr_post_shock'].includes(step);
+  const aedApplied = ['aed_applied','rhythm_analysis','shock_delivered','cpr_post_shock','rhythm_check','rosc','post_rosc_care'].includes(step)
+    || (s.timeline && s.timeline.some(e => e.action === 'apply_aed'));
+  const airwayManaged = s.timeline && s.timeline.some(e => ['open_airway','advanced_airway'].includes(e.action));
+  const skin = s.vitals ? s.vitals.skin : '';
+  const skinColor = skin === 'cyanotic' ? '#4a6a8a' : skin === 'pale' ? '#8a9aa8' : '#6a8898';
+
+  wrap.innerHTML = buildPatientSVG(skinColor, compressing, aedApplied, airwayManaged);
+
+  // Demographics
+  const info = document.getElementById('patient-info');
+  if (s.patient) {
+    const p = s.patient;
+    info.innerHTML =
+      '<div><span class="label">Age:</span><span class="value">' + p.age + '</span></div>' +
+      '<div><span class="label">Sex:</span><span class="value">' + p.sex + '</span></div>' +
+      '<div><span class="label">Wt:</span><span class="value">' + p.weight_kg + ' kg</span></div>' +
+      '<div><span class="label">PMH:</span><span class="value">' + esc(p.history || 'None') + '</span></div>' +
+      (s.vitals ? '<div><span class="label">Skin:</span><span class="value">' + esc(s.vitals.skin || '—') + '</span></div>' +
+      '<div><span class="label">Pupils:</span><span class="value">' + esc(s.vitals.pupils || '—') + '</span></div>' : '');
+  }
+}
+
+function buildPatientSVG(skinColor, compressing, aedApplied, airwayManaged) {
+  const chestAnim = compressing ? 'style="animation:chest-compress .4s ease-in-out infinite"' : '';
+  const chestHighlight = compressing ? '#ff174430' : 'none';
+  const padOpacity = aedApplied ? '1' : '0';
+  const airwayColor = airwayManaged ? 'var(--green)' : 'none';
+
+  return '<svg viewBox="0 0 120 260" xmlns="http://www.w3.org/2000/svg">' +
+    // Head
+    '<ellipse cx="60" cy="30" rx="18" ry="22" fill="none" stroke="' + skinColor + '" stroke-width="1.8"/>' +
+    // Airway indicator
+    '<line x1="60" y1="52" x2="60" y2="68" stroke="' + airwayColor + '" stroke-width="2.5" stroke-linecap="round" opacity="' + (airwayManaged ? '1' : '0') + '"/>' +
+    (airwayManaged ? '<circle cx="60" cy="56" r="3" fill="' + airwayColor + '" opacity=".6"/>' : '') +
+    // Neck
+    '<line x1="60" y1="52" x2="60" y2="62" stroke="' + skinColor + '" stroke-width="1.5"/>' +
+    // Torso
+    '<g ' + chestAnim + '>' +
+    '<path d="M60,62 L38,72 L32,130 L42,145 L78,145 L88,130 L82,72 Z" fill="none" stroke="' + skinColor + '" stroke-width="1.8"/>' +
+    // Chest highlight during compressions
+    '<ellipse cx="60" cy="100" rx="16" ry="14" fill="' + chestHighlight + '" stroke="' + (compressing ? 'var(--red)' : 'none') + '" stroke-width="1" stroke-dasharray="3,2"/>' +
+    (compressing ? '<text x="60" y="104" text-anchor="middle" font-size="8" fill="var(--red)" font-family="var(--mono)">CPR</text>' : '') +
+    '</g>' +
+    // AED pads
+    '<g opacity="' + padOpacity + '">' +
+    '<rect x="44" y="78" width="12" height="16" rx="2" fill="var(--amber)" opacity=".7" ' + (aedApplied ? 'style="animation:pad-pulse 1.2s ease-in-out infinite"' : '') + '/>' +
+    '<text x="50" y="89" text-anchor="middle" font-size="5" fill="var(--bg)" font-weight="700">R</text>' +
+    '<rect x="68" y="110" width="12" height="16" rx="2" fill="var(--amber)" opacity=".7" ' + (aedApplied ? 'style="animation:pad-pulse 1.2s ease-in-out infinite;animation-delay:.3s"' : '') + '/>' +
+    '<text x="74" y="121" text-anchor="middle" font-size="5" fill="var(--bg)" font-weight="700">L</text>' +
+    // Wires
+    '<line x1="50" y1="78" x2="54" y2="70" stroke="var(--amber)" stroke-width=".7" opacity=".5"/>' +
+    '<line x1="74" y1="110" x2="78" y2="70" stroke="var(--amber)" stroke-width=".7" opacity=".5"/>' +
+    '</g>' +
+    // Arms
+    '<line x1="38" y1="72" x2="18" y2="130" stroke="' + skinColor + '" stroke-width="1.5" stroke-linecap="round"/>' +
+    '<line x1="82" y1="72" x2="102" y2="130" stroke="' + skinColor + '" stroke-width="1.5" stroke-linecap="round"/>' +
+    // Hands
+    '<circle cx="18" cy="132" r="4" fill="none" stroke="' + skinColor + '" stroke-width="1.2"/>' +
+    '<circle cx="102" cy="132" r="4" fill="none" stroke="' + skinColor + '" stroke-width="1.2"/>' +
+    // Pelvis
+    '<line x1="42" y1="145" x2="60" y2="155" stroke="' + skinColor + '" stroke-width="1.5"/>' +
+    '<line x1="78" y1="145" x2="60" y2="155" stroke="' + skinColor + '" stroke-width="1.5"/>' +
+    // Legs
+    '<line x1="48" y1="150" x2="38" y2="220" stroke="' + skinColor + '" stroke-width="1.5" stroke-linecap="round"/>' +
+    '<line x1="72" y1="150" x2="82" y2="220" stroke="' + skinColor + '" stroke-width="1.5" stroke-linecap="round"/>' +
+    // Feet
+    '<ellipse cx="35" cy="224" rx="6" ry="3" fill="none" stroke="' + skinColor + '" stroke-width="1.2"/>' +
+    '<ellipse cx="85" cy="224" rx="6" ry="3" fill="none" stroke="' + skinColor + '" stroke-width="1.2"/>' +
+    '</svg>';
+}
+
+// ── Vitals ──────────────────────────────────────────────
+function renderVitals(s) {
+  const v = s.vitals || {};
+  const vitals = [
+    { label: 'HR', value: v.hr != null ? v.hr : '—', unit: 'bpm',
+      cls: vitalClass(v.hr, [60, 100], [40, 150]),
+      pulse: v.hr > 0 },
+    { label: 'BP', value: v.bp_systolic != null ? v.bp_systolic + '/' + v.bp_diastolic : '—', unit: 'mmHg',
+      cls: vitalClass(v.bp_systolic, [90, 140], [70, 180]) },
+    { label: 'SpO2', value: v.spo2 != null ? v.spo2 : '—', unit: '%',
+      cls: vitalClass(v.spo2, [94, 100], [88, 100]) },
+    { label: 'Rhythm', value: v.rhythm || s.rhythm || '—', unit: '',
+      cls: rhythmClass(v.rhythm || s.rhythm) },
+    { label: 'GCS', value: v.gcs != null ? v.gcs : '—', unit: '/15',
+      cls: vitalClass(v.gcs, [13, 15], [9, 15]) }
+  ];
+
+  const el = document.getElementById('vitals');
+  el.innerHTML = vitals.map(vt => {
+    const cardCls = vt.cls === 'critical' ? ' critical' : vt.cls === 'warning' ? ' warning' : '';
+    const pulseCls = vt.pulse ? ' has-pulse' : '';
+    return '<div class="vital-card' + cardCls + '">' +
+      '<div class="vital-label">' + vt.label + '</div>' +
+      '<div class="vital-value ' + vt.cls + pulseCls + '">' + vt.value + '</div>' +
+      '<div class="vital-sub">' + vt.unit + '</div>' +
+      '</div>';
+  }).join('');
+}
+
+function vitalClass(val, normalRange, warnRange) {
+  if (val == null || val === '—') return 'critical';
+  if (val === 0 && normalRange[0] > 0) return 'critical';
+  if (val >= normalRange[0] && val <= normalRange[1]) return 'normal';
+  if (val >= warnRange[0] && val <= warnRange[1]) return 'warning';
+  return 'critical';
+}
+
+function rhythmClass(r) {
+  if (!r) return 'critical';
+  const crit = ['VFib','VTach','Asystole','PEA','Pulseless VT'];
+  const warn = ['SVT','AFib','AFlutter','Bradycardia'];
+  if (crit.some(c => r.toLowerCase().includes(c.toLowerCase()))) return 'critical';
+  if (warn.some(c => r.toLowerCase().includes(c.toLowerCase()))) return 'warning';
+  return 'normal';
+}
+
+// ── Metrics ─────────────────────────────────────────────
+function renderMetrics(s) {
+  const m = s.metrics || {};
+  const items = [
+    { label: 'Compression %', value: m.compression_fraction != null ? Math.round(m.compression_fraction) + '%' : '—',
+      cls: m.compression_fraction >= 60 ? 'good' : m.compression_fraction > 0 ? 'bad' : '' },
+    { label: 'CPR Cycles', value: m.cpr_cycle_count != null ? m.cpr_cycle_count : '—', cls: '' },
+    { label: 'Shocks', value: m.shock_count != null ? m.shock_count : '—', cls: '' },
+    { label: 'Epi Doses', value: m.epi_doses != null ? m.epi_doses : '—', cls: '' },
+    { label: 'Pause Time', value: m.total_pause_duration != null ? m.total_pause_duration + 's' : '—',
+      cls: m.total_pause_duration > 10 ? 'bad' : '' },
+    { label: '1st Compress', value: m.time_to_first_compression != null ? m.time_to_first_compression + 's' : '—',
+      cls: m.time_to_first_compression != null ? (m.time_to_first_compression <= 60 ? 'good' : 'bad') : '' }
+  ];
+
+  document.getElementById('metrics').innerHTML = items.map(i =>
+    '<div class="metric-card">' +
+    '<span class="metric-label">' + i.label + '</span>' +
+    '<span class="metric-value ' + i.cls + '">' + i.value + '</span>' +
+    '</div>'
+  ).join('');
+}
+
+// ── Algorithm Tracker ───────────────────────────────────
+function renderAlgo(s) {
+  const step = s.bls_step || '';
+  const completedActions = (s.timeline || []).map(e => e.action);
+
+  // Determine which path to show
+  const isCardiac = ['cpr_in_progress','aed_applied','rhythm_analysis','shock_delivered','cpr_post_shock','rhythm_check'].includes(step)
+    || completedActions.some(a => ['start_compressions','apply_aed'].includes(a));
+  const isRespiratory = step === 'rescue_breathing' || completedActions.includes('give_breaths_rescue');
+  const isROSC = ['rosc','post_rosc_care'].includes(step);
+
+  // Map bls_step to step IDs for status
+  const completedSteps = new Set();
+  const errorSteps = new Set();
+  const stepActionMap = {
+    'scene_safety': ['check_scene_safety'],
+    'responsiveness': ['check_responsiveness'],
+    'activate_ems': ['activate_ems','request_aed'],
+    'pulse_breathing_check': ['check_pulse_breathing'],
+    'cpr_in_progress': ['start_compressions','resume_cpr'],
+    'aed_applied': ['apply_aed'],
+    'rhythm_analysis': ['analyze_rhythm'],
+    'shock_delivered': ['deliver_shock'],
+    'cpr_post_shock': ['resume_cpr'],
+    'rhythm_check': ['check_rhythm'],
+    'rescue_breathing': ['give_breaths'],
+    'rosc': ['rosc_assessment'],
+    'post_rosc_care': ['post_rosc_care']
+  };
+
+  // Find completed steps
+  const allSteps = [...ALGO_STEPS_LINEAR, ...ALGO_CARDIAC, ...ALGO_RESPIRATORY, ...ALGO_TERMINAL];
+  const stepOrder = allSteps.map(st => st.id);
+  const currentIdx = stepOrder.indexOf(step);
+
+  for (const st of allSteps) {
+    const actions = stepActionMap[st.id] || [];
+    if (completedActions.some(a => actions.includes(a))) {
+      completedSteps.add(st.id);
+    }
+  }
+
+  // Check for errors on steps
+  (s.errors || []).forEach(err => {
+    for (const st of allSteps) {
+      if (err.toLowerCase().includes(st.label.toLowerCase())) {
+        errorSteps.add(st.id);
+      }
+    }
+  });
+
+  let html = '';
+
+  function renderStep(st) {
+    let status = 'upcoming';
+    let icon = '\u25CB'; // ○
+    if (st.id === step) { status = 'current'; icon = '\u25BA'; } // ►
+    else if (completedSteps.has(st.id)) { status = 'completed'; icon = '\u2713'; } // ✓
+    if (errorSteps.has(st.id)) { status = 'error'; icon = '\u2717'; } // ✗
+    return '<div class="algo-step ' + status + '">' +
+      '<span class="step-icon">' + icon + '</span>' +
+      '<span class="step-label">' + st.label + '</span></div>';
+  }
+
+  ALGO_STEPS_LINEAR.forEach(st => { html += renderStep(st); });
+
+  if (isCardiac || !isRespiratory) {
+    html += '<div class="algo-branch">Cardiac Arrest Path</div>';
+    ALGO_CARDIAC.forEach(st => { html += renderStep(st); });
+  }
+  if (isRespiratory) {
+    html += '<div class="algo-branch">Respiratory Path</div>';
+    ALGO_RESPIRATORY.forEach(st => { html += renderStep(st); });
+  }
+
+  if (isROSC || isCardiac || isRespiratory) {
+    html += '<div class="algo-branch">Outcome</div>';
+    ALGO_TERMINAL.forEach(st => { html += renderStep(st); });
+  }
+
+  document.getElementById('algo-list').innerHTML = html;
+}
+
+// ── Action Buttons ──────────────────────────────────────
+function renderActions(s) {
+  const valid = new Set(s.valid_actions || []);
+  const recommended = new Set(s.recommended_actions || []);
+  const completedActions = new Set((s.timeline || []).map(e => e.action));
+  const el = document.getElementById('actions');
+
+  // Show all action labels but only enable valid ones
+  const allActions = Object.keys(ACTION_LABELS);
+  // Filter to show: valid + recommended + recently completed (for context)
+  const toShow = allActions.filter(a => valid.has(a) || recommended.has(a));
+
+  if (toShow.length === 0 && s.status !== 'completed') {
+    el.innerHTML = '<span style="color:var(--text-dim);font-size:11px;padding:4px">Waiting for state update\u2026</span>';
+    return;
+  }
+  if (s.status === 'completed') {
+    el.innerHTML = '<span style="color:var(--green);font-size:11px;padding:4px;font-weight:600">Scenario Complete</span>';
+    return;
+  }
+
+  el.innerHTML = toShow.map(a => {
+    const isValid = valid.has(a);
+    const isRec = recommended.has(a);
+    const isDone = completedActions.has(a) && !isValid;
+    let cls = 'action-btn';
+    if (isRec && isValid) cls += ' recommended';
+    if (isDone) cls += ' completed-action';
+    const disabled = (!isValid || isDone) ? ' disabled' : '';
+    return '<button class="' + cls + '"' + disabled +
+      ' onclick="sendAction(\'' + a + '\')">' +
+      ACTION_LABELS[a] + '</button>';
+  }).join('');
+}
+
+// ── Timeline ────────────────────────────────────────────
+function renderTimeline(s) {
+  const list = document.getElementById('timeline-list');
+  const entries = s.timeline || [];
+
+  list.innerHTML = entries.map(e => {
+    const evalCls = e.evaluation === 'correct' ? 'correct' :
+                    e.evaluation === 'incorrect' ? 'incorrect' : 'info';
+    const icon = e.evaluation === 'correct' ? '\u2713' :
+                 e.evaluation === 'incorrect' ? '\u2717' : '\u2022';
+    return '<div class="tl-entry">' +
+      '<span class="tl-time">' + fmtTime(e.timestamp_sec || 0) + '</span>' +
+      '<span class="tl-icon ' + evalCls + '">' + icon + '</span>' +
+      '<span class="tl-desc">' + esc(e.description || ACTION_LABELS[e.action] || e.action) +
+      (e.notes ? ' <span style="color:var(--text-dim)">(' + esc(e.notes) + ')</span>' : '') +
+      '</span></div>';
+  }).join('');
+
+  list.scrollTop = list.scrollHeight;
+}
+
+// ── Feedback Toasts ─────────────────────────────────────
+function showFeedback(s, prev) {
+  const bar = document.getElementById('feedback-bar');
+  const newErrors = (s.errors || []).filter(e => !(previousErrors).includes(e));
+  const newGood = (s.good_calls || []).filter(e => !(previousGoodCalls).includes(e));
+  previousErrors = s.errors || [];
+  previousGoodCalls = s.good_calls || [];
+
+  newErrors.forEach(e => addToast(bar, e, 'error'));
+  newGood.forEach(e => addToast(bar, e, 'good'));
+}
+
+function addToast(bar, text, type) {
+  const t = document.createElement('div');
+  t.className = 'feedback-toast ' + type;
+  t.textContent = text;
+  bar.appendChild(t);
+  setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity .4s'; }, 3000);
+  setTimeout(() => { if (t.parentNode) t.parentNode.removeChild(t); }, 3500);
+}
+
+// ── Utility ─────────────────────────────────────────────
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Demo / Standalone Mode
+// ═══════════════════════════════════════════════════════════
+
+const DEMO_STATE = {
+  case_id: 'demo-001',
+  patient: { age: 58, sex: 'M', weight_kg: 85, history: 'HTN, DM, Hyperlipidemia' },
+  status: 'active',
+  bls_step: 'scene_safety',
+  vitals: { hr: 0, rhythm: 'VFib', bp_systolic: 0, bp_diastolic: 0, spo2: 0, rr: 0, gcs: 3, pupils: 'fixed dilated', skin: 'cyanotic' },
+  rhythm: 'VFib',
+  timeline: [],
+  metrics: { time_to_first_compression: null, compression_fraction: 0, cpr_cycle_count: 0, shock_count: 0, epi_doses: 0, compressor_switches: 0, total_pause_duration: 0 },
+  elapsed_sec: 0,
+  presentation: 'Adult male found unresponsive in office break room. Co-worker called for help.',
+  valid_actions: ['check_scene_safety'],
+  recommended_actions: ['check_scene_safety'],
+  errors: [],
+  good_calls: []
+};
+
+// Demo scenario progression
+const DEMO_SEQUENCE = [
+  {
+    trigger: 'check_scene_safety',
+    patch: {
+      bls_step: 'responsiveness', elapsed_sec: 5,
+      valid_actions: ['check_responsiveness'],
+      recommended_actions: ['check_responsiveness'],
+      timeline: [{ action: 'check_scene_safety', timestamp_sec: 5, evaluation: 'correct', notes: '', description: 'Scene safety confirmed' }]
+    }
+  },
+  {
+    trigger: 'check_responsiveness',
+    patch: {
+      bls_step: 'activate_ems', elapsed_sec: 12,
+      valid_actions: ['activate_ems', 'request_aed'],
+      recommended_actions: ['activate_ems'],
+      good_calls: ['Quick responsiveness check']
+    },
+    timelineEntry: { action: 'check_responsiveness', timestamp_sec: 12, evaluation: 'correct', notes: '', description: 'Patient unresponsive - no movement or response' }
+  },
+  {
+    trigger: 'activate_ems',
+    patch: {
+      bls_step: 'activate_ems', elapsed_sec: 18,
+      valid_actions: ['request_aed', 'check_pulse_breathing'],
+      recommended_actions: ['request_aed']
+    },
+    timelineEntry: { action: 'activate_ems', timestamp_sec: 18, evaluation: 'correct', notes: '', description: 'EMS activated - 911 called' }
+  },
+  {
+    trigger: 'request_aed',
+    patch: {
+      bls_step: 'pulse_breathing_check', elapsed_sec: 22,
+      valid_actions: ['check_pulse_breathing'],
+      recommended_actions: ['check_pulse_breathing']
+    },
+    timelineEntry: { action: 'request_aed', timestamp_sec: 22, evaluation: 'correct', notes: '', description: 'AED requested from front desk' }
+  },
+  {
+    trigger: 'check_pulse_breathing',
+    patch: {
+      bls_step: 'cpr_in_progress', elapsed_sec: 32,
+      valid_actions: ['start_compressions'],
+      recommended_actions: ['start_compressions'],
+      good_calls: ['Quick responsiveness check', 'Efficient pulse check']
+    },
+    timelineEntry: { action: 'check_pulse_breathing', timestamp_sec: 32, evaluation: 'correct', notes: 'No pulse, no breathing', description: 'No pulse detected - no breathing observed' }
+  },
+  {
+    trigger: 'start_compressions',
+    patch: {
+      bls_step: 'cpr_in_progress', elapsed_sec: 38,
+      vitals: { hr: 0, rhythm: 'VFib', bp_systolic: 0, bp_diastolic: 0, spo2: 34, rr: 0, gcs: 3, pupils: 'fixed dilated', skin: 'cyanotic' },
+      metrics: { time_to_first_compression: 38, compression_fraction: 85, cpr_cycle_count: 1, shock_count: 0, epi_doses: 0, compressor_switches: 0, total_pause_duration: 0 },
+      valid_actions: ['open_airway', 'give_breaths', 'apply_aed'],
+      recommended_actions: ['open_airway'],
+      good_calls: ['Quick responsiveness check', 'Efficient pulse check', 'Compressions started within 60s']
+    },
+    timelineEntry: { action: 'start_compressions', timestamp_sec: 38, evaluation: 'correct', notes: 'Rate: 110/min, Depth: 2.2in', description: 'High-quality chest compressions initiated' }
+  },
+  {
+    trigger: 'open_airway',
+    patch: {
+      bls_step: 'cpr_in_progress', elapsed_sec: 45,
+      valid_actions: ['give_breaths', 'apply_aed'],
+      recommended_actions: ['give_breaths']
+    },
+    timelineEntry: { action: 'open_airway', timestamp_sec: 45, evaluation: 'correct', notes: 'Head-tilt chin-lift', description: 'Airway opened with head-tilt chin-lift' }
+  },
+  {
+    trigger: 'give_breaths',
+    patch: {
+      bls_step: 'cpr_in_progress', elapsed_sec: 50,
+      vitals: { hr: 0, rhythm: 'VFib', bp_systolic: 0, bp_diastolic: 0, spo2: 48, rr: 0, gcs: 3, pupils: 'fixed dilated', skin: 'cyanotic' },
+      metrics: { time_to_first_compression: 38, compression_fraction: 78, cpr_cycle_count: 1, shock_count: 0, epi_doses: 0, compressor_switches: 0, total_pause_duration: 4 },
+      valid_actions: ['apply_aed', 'resume_cpr'],
+      recommended_actions: ['apply_aed']
+    },
+    timelineEntry: { action: 'give_breaths', timestamp_sec: 50, evaluation: 'correct', notes: '2 breaths delivered, visible chest rise', description: '2 rescue breaths delivered - 30:2 cycle complete' }
+  },
+  {
+    trigger: 'apply_aed',
+    patch: {
+      bls_step: 'aed_applied', elapsed_sec: 62,
+      valid_actions: ['analyze_rhythm'],
+      recommended_actions: ['analyze_rhythm']
+    },
+    timelineEntry: { action: 'apply_aed', timestamp_sec: 62, evaluation: 'correct', notes: 'Pads placed correctly', description: 'AED pads applied - right clavicle & left apex' }
+  },
+  {
+    trigger: 'analyze_rhythm',
+    patch: {
+      bls_step: 'rhythm_analysis', elapsed_sec: 68,
+      valid_actions: ['deliver_shock'],
+      recommended_actions: ['deliver_shock'],
+      metrics: { time_to_first_compression: 38, compression_fraction: 72, cpr_cycle_count: 2, shock_count: 0, epi_doses: 0, compressor_switches: 0, total_pause_duration: 8 }
+    },
+    timelineEntry: { action: 'analyze_rhythm', timestamp_sec: 68, evaluation: 'correct', notes: 'Shockable rhythm - VFib', description: 'AED analysis: Shockable rhythm detected (VFib)' }
+  },
+  {
+    trigger: 'deliver_shock',
+    patch: {
+      bls_step: 'cpr_post_shock', elapsed_sec: 72,
+      vitals: { hr: 0, rhythm: 'VFib', bp_systolic: 0, bp_diastolic: 0, spo2: 52, rr: 0, gcs: 3, pupils: 'fixed dilated', skin: 'cyanotic' },
+      metrics: { time_to_first_compression: 38, compression_fraction: 70, cpr_cycle_count: 2, shock_count: 1, epi_doses: 0, compressor_switches: 0, total_pause_duration: 10 },
+      valid_actions: ['resume_cpr'],
+      recommended_actions: ['resume_cpr']
+    },
+    timelineEntry: { action: 'deliver_shock', timestamp_sec: 72, evaluation: 'correct', notes: '200J biphasic', description: 'Shock #1 delivered - 200J biphasic' }
+  },
+  {
+    trigger: 'resume_cpr',
+    patch: {
+      bls_step: 'cpr_post_shock', elapsed_sec: 74,
+      metrics: { time_to_first_compression: 38, compression_fraction: 74, cpr_cycle_count: 3, shock_count: 1, epi_doses: 0, compressor_switches: 0, total_pause_duration: 10 },
+      valid_actions: ['switch_compressor', 'check_rhythm', 'give_epinephrine', 'establish_iv'],
+      recommended_actions: ['check_rhythm']
+    },
+    timelineEntry: { action: 'resume_cpr', timestamp_sec: 74, evaluation: 'correct', notes: 'Immediate resume', description: 'CPR resumed immediately after shock' }
+  },
+  {
+    trigger: 'check_rhythm',
+    patch: {
+      bls_step: 'rosc', elapsed_sec: 198,
+      vitals: { hr: 78, rhythm: 'Sinus', bp_systolic: 88, bp_diastolic: 54, spo2: 91, rr: 8, gcs: 6, pupils: 'reactive', skin: 'pale' },
+      metrics: { time_to_first_compression: 38, compression_fraction: 82, cpr_cycle_count: 5, shock_count: 1, epi_doses: 0, compressor_switches: 1, total_pause_duration: 14 },
+      valid_actions: ['rosc_assessment'],
+      recommended_actions: ['rosc_assessment'],
+      good_calls: ['Quick responsiveness check', 'Efficient pulse check', 'Compressions started within 60s', 'High compression fraction', 'Excellent scenario management']
+    },
+    timelineEntry: { action: 'check_rhythm', timestamp_sec: 198, evaluation: 'correct', notes: 'Organized rhythm - Sinus', description: 'Rhythm check: Sinus rhythm detected!' }
+  },
+  {
+    trigger: 'rosc_assessment',
+    patch: {
+      bls_step: 'post_rosc_care', elapsed_sec: 210,
+      vitals: { hr: 82, rhythm: 'Sinus', bp_systolic: 94, bp_diastolic: 58, spo2: 94, rr: 10, gcs: 7, pupils: 'reactive', skin: 'pale' },
+      valid_actions: ['post_rosc_care'],
+      recommended_actions: ['post_rosc_care']
+    },
+    timelineEntry: { action: 'rosc_assessment', timestamp_sec: 210, evaluation: 'correct', notes: 'Pulse present, BP improving', description: 'ROSC confirmed - pulse present, spontaneous breathing' }
+  },
+  {
+    trigger: 'post_rosc_care',
+    patch: {
+      bls_step: 'post_rosc_care', status: 'completed', elapsed_sec: 240,
+      vitals: { hr: 76, rhythm: 'Sinus', bp_systolic: 102, bp_diastolic: 64, spo2: 96, rr: 14, gcs: 8, pupils: 'reactive', skin: 'warm' },
+      valid_actions: [],
+      recommended_actions: []
+    },
+    timelineEntry: { action: 'post_rosc_care', timestamp_sec: 240, evaluation: 'correct', notes: 'Targeted temperature management initiated', description: 'Post-ROSC care initiated - scenario complete' }
+  }
+];
+
+let demoStateSnapshot = null;
+let demoStepIdx = 0;
+
+function initDemo() {
+  demoMode = true;
+  document.body.classList.add('demo-mode');
+  demoStateSnapshot = JSON.parse(JSON.stringify(DEMO_STATE));
+  demoStepIdx = 0;
+  updateDashboard(demoStateSnapshot);
+
+  // Override sendAction for demo mode
+  window._origSendAction = sendAction;
+  window.sendAction = function(action) {
+    if (!demoMode) { window._origSendAction(action); return; }
+    advanceDemo(action);
+  };
+}
+
+function advanceDemo(action) {
+  if (demoStepIdx >= DEMO_SEQUENCE.length) return;
+  const step = DEMO_SEQUENCE[demoStepIdx];
+  if (step.trigger !== action) {
+    // Wrong action in demo; still allow it
+    // Find matching step anywhere
+    const found = DEMO_SEQUENCE.findIndex((s, i) => i >= demoStepIdx && s.trigger === action);
+    if (found >= 0) { demoStepIdx = found; } else return;
+  }
+  const entry = DEMO_SEQUENCE[demoStepIdx];
+  // Merge patch
+  const prev = demoStateSnapshot;
+  for (const key in entry.patch) {
+    if (key === 'vitals' || key === 'metrics') {
+      demoStateSnapshot[key] = Object.assign({}, demoStateSnapshot[key], entry.patch[key]);
+    } else {
+      demoStateSnapshot[key] = entry.patch[key];
+    }
+  }
+  if (entry.timelineEntry) {
+    demoStateSnapshot.timeline = [...(demoStateSnapshot.timeline || []), entry.timelineEntry];
+  }
+  // Apply any timeline from patch
+  if (entry.patch.timeline) {
+    demoStateSnapshot.timeline = entry.patch.timeline;
+  }
+  demoStepIdx++;
+  demoStateSnapshot.elapsed_sec = entry.patch.elapsed_sec || demoStateSnapshot.elapsed_sec;
+  startTimestamp = Date.now() - demoStateSnapshot.elapsed_sec * 1000;
+  updateDashboard(demoStateSnapshot);
+}
+
+// ── Init ────────────────────────────────────────────────
+// Wait briefly for MCP messages, else start demo
+let mcpReceived = false;
+window.addEventListener('message', function onFirst(e) {
+  if (e.data && e.data.type === 'context_update') {
+    mcpReceived = true;
+    window.removeEventListener('message', onFirst);
+  }
+});
+setTimeout(() => {
+  if (!mcpReceived) initDemo();
+}, 800);
+</script>
+</body>
+</html>
