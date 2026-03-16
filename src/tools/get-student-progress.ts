@@ -3,12 +3,11 @@
 // ============================================================================
 
 import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
-import { StorageManager } from "../storage/persistence.js";
-import { StoredScenario } from "../types.js";
+import { StorageAdapter, StoredScenario } from "../types.js";
 
-let _storageManager: StorageManager | null = null;
+let _storageManager: StorageAdapter | null = null;
 
-export function setProgressStorageManager(sm: StorageManager): void {
+export function setProgressStorageManager(sm: StorageAdapter): void {
   _storageManager = sm;
 }
 

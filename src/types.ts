@@ -186,3 +186,24 @@ export interface DebriefReport {
   grade: "Competent" | "Needs Practice" | "Specific Deficiency";
   instructor_notes: string;
 }
+
+// Storage adapter interface — implemented by both file-based and Durable Object storage
+export interface StorageAdapter {
+  saveScenario(state: ScenarioState, debrief: DebriefReport, studentId: string | null, scenarioType: string): Promise<void>;
+  getScenario(caseId: string): Promise<StoredScenario | null>;
+  listScenarios(): Promise<ScenarioIndexEntry[]>;
+  getStudent(studentId: string): Promise<StudentRecord | null>;
+  listStudents(): Promise<StudentRecord[]>;
+  saveStudent(record: StudentRecord): Promise<void>;
+  addInstructorNote(caseId: string, note: string, category: InstructorAnnotation["category"]): Promise<boolean>;
+  searchScenarios(filters: {
+    student_id?: string;
+    date_after?: string;
+    date_before?: string;
+    outcome?: string;
+    grade?: string;
+    scenario_type?: string;
+    has_notes?: boolean;
+    top_k?: number;
+  }): Promise<ScenarioIndexEntry[]>;
+}

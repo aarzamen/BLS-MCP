@@ -4,11 +4,11 @@
 
 import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { generateDebrief, getScenario } from "../state/scenario-state.js";
-import { StorageManager } from "../storage/persistence.js";
+import { StorageAdapter } from "../types.js";
 
-let _storageManager: StorageManager | null = null;
+let _storageManager: StorageAdapter | null = null;
 
-export function setStorageManager(sm: StorageManager): void {
+export function setStorageManager(sm: StorageAdapter): void {
   _storageManager = sm;
 }
 

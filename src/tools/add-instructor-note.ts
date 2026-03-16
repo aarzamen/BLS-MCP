@@ -3,12 +3,11 @@
 // ============================================================================
 
 import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
-import { StorageManager } from "../storage/persistence.js";
-import { InstructorAnnotation } from "../types.js";
+import { StorageAdapter, InstructorAnnotation } from "../types.js";
 
-let _storageManager: StorageManager | null = null;
+let _storageManager: StorageAdapter | null = null;
 
-export function setNoteStorageManager(sm: StorageManager): void {
+export function setNoteStorageManager(sm: StorageAdapter): void {
   _storageManager = sm;
 }
 

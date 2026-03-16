@@ -1,0 +1,22 @@
+name = "bls-scenario-server"
+main = "worker/index.ts"
+compatibility_date = "2026-03-01"
+compatibility_flags = ["nodejs_compat"]
+
+[observability]
+enabled = true
+
+[durable_objects]
+bindings = [
+  { name = "BLS_SCENARIO", class_name = "BLSScenarioAgent" }
+]
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["BLSScenarioAgent"]
+
+# HTML files served as text modules
+[[rules]]
+type = "Text"
+globs = ["**/*.html"]
+fallthrough = false
