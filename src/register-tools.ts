@@ -58,6 +58,7 @@ export function registerTools(server: McpServer, getDashboardHtml?: () => string
       student_id: z.string().optional().describe("Student identifier for longitudinal tracking"),
       scenario_type: z.string().optional().describe("Scenario category, e.g., witnessed_vfib, pea_arrest, respiratory_arrest"),
     },
+    { title: "Start BLS Scenario", readOnlyHint: false, destructiveHint: false, openWorldHint: false },
     (args) => handleStartScenario(args as Record<string, unknown>)
   );
 
@@ -72,6 +73,7 @@ export function registerTools(server: McpServer, getDashboardHtml?: () => string
       timestamp_sec: z.number().describe("Seconds since scenario start when action was taken"),
       notes: z.string().optional().describe("Optional verbal callout or additional context"),
     },
+    { title: "Submit Clinical Action", readOnlyHint: false, destructiveHint: false, openWorldHint: false },
     (args) => handleSubmitAction(args as Record<string, unknown>)
   );
 
@@ -98,6 +100,7 @@ export function registerTools(server: McpServer, getDashboardHtml?: () => string
       rosc: z.boolean().optional().describe("Set true if ROSC achieved"),
       scenario_complete: z.boolean().optional(),
     },
+    { title: "Update Patient Vitals", readOnlyHint: false, destructiveHint: false, openWorldHint: false },
     (args) => handleUpdatePatient(args as Record<string, unknown>)
   );
 
@@ -107,6 +110,7 @@ export function registerTools(server: McpServer, getDashboardHtml?: () => string
     "get_scenario_state",
     "Get the current state of the running BLS scenario including all actions taken, current vitals, timeline, and BLS algorithm position.",
     { case_id: z.string() },
+    { title: "View Scenario Status", readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     (args) => handleGetState(args as Record<string, unknown>)
   );
 
@@ -120,6 +124,7 @@ export function registerTools(server: McpServer, getDashboardHtml?: () => string
       outcome: z.enum(["rosc", "ongoing_cpr", "terminated", "handoff_to_als"]),
       instructor_notes: z.string().optional(),
     },
+    { title: "End Scenario & Debrief", readOnlyHint: false, destructiveHint: false, openWorldHint: false },
     (args) => handleEndScenario(args as Record<string, unknown>)
   );
 
@@ -138,6 +143,7 @@ export function registerTools(server: McpServer, getDashboardHtml?: () => string
       has_notes: z.boolean().optional().describe("Filter to scenarios with instructor notes"),
       top_k: z.number().optional().describe("Max results to return. Default 10."),
     },
+    { title: "Search Past Scenarios", readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     (args) => handleSearchScenarios(args as Record<string, unknown>)
   );
 
@@ -147,6 +153,7 @@ export function registerTools(server: McpServer, getDashboardHtml?: () => string
     "get_student_progress",
     "Track a student's BLS performance across all training sessions. Returns longitudinal metrics, trend analysis, common errors, and identified weak areas.",
     { student_id: z.string().describe("Student identifier") },
+    { title: "View Student Progress", readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     (args) => handleGetStudentProgress(args as Record<string, unknown>)
   );
 
@@ -156,6 +163,7 @@ export function registerTools(server: McpServer, getDashboardHtml?: () => string
     "compare_scenarios",
     "Compare quality metrics between two BLS scenarios. Useful for tracking student improvement over time or comparing two students on the same case type.",
     { case_id_a: z.string(), case_id_b: z.string() },
+    { title: "Compare Scenarios", readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     (args) => handleCompareScenarios(args as Record<string, unknown>)
   );
 
@@ -171,6 +179,7 @@ export function registerTools(server: McpServer, getDashboardHtml?: () => string
       scenario_type: z.enum(["witnessed_vfib", "unwitnessed_asystole", "pea_arrest", "respiratory_arrest", "opioid_overdose", "choking_to_arrest", "exercise_related_sca", "maternal_arrest"]).optional(),
       exclude_recent: z.boolean().optional().describe("If true and student_id provided, avoid scenario types the student has done in last 3 sessions"),
     },
+    { title: "Generate Training Case", readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     (args) => handleGenerateCase(args as Record<string, unknown>)
   );
 
@@ -184,6 +193,7 @@ export function registerTools(server: McpServer, getDashboardHtml?: () => string
       note: z.string().describe("Instructor observation or teaching note"),
       category: z.enum(["communication", "leadership", "technique", "teamwork", "clinical_judgment", "general"]).optional().describe("Category for the note. Default: general."),
     },
+    { title: "Add Instructor Note", readOnlyHint: false, destructiveHint: false, openWorldHint: false },
     (args) => handleAddInstructorNote(args as Record<string, unknown>)
   );
 
