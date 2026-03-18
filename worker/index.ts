@@ -12,6 +12,10 @@ import { setCompareStorageManager } from "../src/tools/compare-scenarios.js";
 import { setGenerateCaseStorageManager } from "../src/tools/generate-case.js";
 import { setNoteStorageManager } from "../src/tools/add-instructor-note.js";
 import { DurableStorageManager } from "./storage.js";
+import { handleStartScenario } from "../src/tools/start-scenario.js";
+import { handleSubmitAction } from "../src/tools/submit-action.js";
+import { handleGetState } from "../src/tools/get-state.js";
+import { handleEndScenario } from "../src/tools/end-scenario.js";
 import DASHBOARD_HTML from "../ui/dashboard.html";
 import LANDING_HTML from "./pages/index.html";
 import PRIVACY_HTML from "./pages/privacy.html";
@@ -73,6 +77,77 @@ export class BLSScenarioAgent extends McpAgent<Env, {}, {}> {
     // Register all tools and the dashboard resource
     registerTools(this.server, () => DASHBOARD_HTML);
   }
+
+  // Intercept regular HTTP requests for REST API before MCP handling
+  async onRequest(request: Request): Promise<Response> {
+    const url = new URL(request.url);
+    if (url.pathname.startsWith("/app/api/")) {
+      return this.handleRestApi(request, url);
+    }
+    return new Response("Not Found", { status: 404 });
+  }
+
+  // Handle REST API requests
+  async handleRestApi(request: Request, url: URL): Promise<Response> {
+    const cors = {
+      "access-control-allow-origin": "*",
+      "access-control-allow-methods": "GET, POST, OPTIONS",
+      "access-control-allow-headers": "content-type",
+      "content-type": "application/json",
+    };
+
+    if (request.method === "OPTIONS") {
+      return new Response(null, { status: 204, headers: cors });
+    }
+
+    try {
+      const path = url.pathname.replace("/app/api", "");
+
+      if (path === "/start" && request.method === "POST") {
+        const body = await request.json() as Record<string, unknown>;
+        const result = handleStartScenario(body);
+        return new Response(result.content[0].text, { headers: cors });
+      }
+
+      if (path === "/action" && request.method === "POST") {
+        const body = await request.json() as Record<string, unknown>;
+        const result = handleSubmitAction(body);
+        return new Response(result.content[0].text, { headers: cors });
+      }
+
+      if (path === "/state" && request.method === "POST") {
+        const body = await request.json() as Record<string, unknown>;
+        const result = handleGetState(body);
+        return new Response(result.content[0].text, { headers: cors });
+      }
+
+      if (path === "/end" && request.method === "POST") {
+        const body = await request.json() as Record<string, unknown>;
+        const result = handleEndScenario(body);
+        return new Response(result.content[0].text, { headers: cors });
+      }
+
+      if (path === "/scenarios" && request.method === "GET") {
+        const storage = new DurableStorageManager(this.ctx.storage.sql);
+        const filters: Record<string, unknown> = {};
+        for (const [key, val] of url.searchParams) { filters[key] = val; }
+        const results = await storage.searchScenarios(filters as any);
+        return new Response(JSON.stringify({ count: results.length, scenarios: results }), { headers: cors });
+      }
+
+      if (path.startsWith("/student/") && request.method === "GET") {
+        const studentId = decodeURIComponent(path.replace("/student/", ""));
+        const storage = new DurableStorageManager(this.ctx.storage.sql);
+        const scenarios = await storage.searchScenarios({ student_id: studentId, top_k: 1000 });
+        // Return basic progress data
+        return new Response(JSON.stringify({ student_id: studentId, total_scenarios: scenarios.length, scenarios }), { headers: cors });
+      }
+
+      return new Response(JSON.stringify({ error: "Not found" }), { status: 404, headers: cors });
+    } catch (err: any) {
+      return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: cors });
+    }
+  }
 }
 
 // ── Worker fetch handler ──────────────────────────────────────────────────
@@ -107,6 +182,13 @@ export default {
       return new Response(token, {
         headers: { "content-type": "text/plain" },
       });
+    }
+
+    // REST API — route to a dedicated DO instance for state persistence
+    if (url.pathname.startsWith("/app/api/")) {
+      const id = env.BLS_SCENARIO.idFromName("rest-api");
+      const stub = env.BLS_SCENARIO.get(id);
+      return stub.fetch(request);
     }
 
     // MCP endpoint — delegate to McpAgent

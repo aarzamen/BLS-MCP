@@ -370,8 +370,23 @@ window.addEventListener('message', (event) => {
   }
 });
 
+const isStandalone = window === window.parent || !window.parent;
+const API_BASE = '/app/api';
+
 function sendAction(action) {
   if (!currentState) return;
+  if (isStandalone && !demoMode) {
+    // REST API mode
+    fetch(API_BASE + '/action', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ case_id: currentState.case_id, action: action, timestamp_sec: getElapsedSeconds() })
+    }).then(function(r) { return r.json(); }).then(function(data) {
+      if (data.state) updateDashboard(data.state);
+    }).catch(function(err) { console.error('REST action failed:', err); });
+    return;
+  }
+  // MCP mode
   window.parent.postMessage({
     type: 'tool_call',
     tool: 'submit_action',
