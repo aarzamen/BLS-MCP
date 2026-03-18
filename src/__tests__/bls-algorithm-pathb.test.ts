@@ -153,4 +153,42 @@ describe("BLS Algorithm — Path B (Respiratory Arrest)", () => {
     expect(getRecommendedActions("rescue_breathing_reassess")).toEqual(["check_pulse_breathing"]);
     expect(getValidActions("rescue_breathing_reassess")).toEqual(["check_pulse_breathing"]);
   });
+
+  it("validates head_tilt_chin_lift at pulse_no_breathing and rescue_breathing", () => {
+    expect(isActionValid("pulse_no_breathing", "head_tilt_chin_lift")).toBe(true);
+    expect(isActionValid("rescue_breathing", "head_tilt_chin_lift")).toBe(true);
+    expect(isActionValid("cpr_in_progress", "head_tilt_chin_lift")).toBe(false);
+  });
+
+  it("validates jaw_thrust at pulse_no_breathing and rescue_breathing", () => {
+    expect(isActionValid("pulse_no_breathing", "jaw_thrust")).toBe(true);
+    expect(isActionValid("rescue_breathing", "jaw_thrust")).toBe(true);
+    expect(isActionValid("scene_safety", "jaw_thrust")).toBe(false);
+  });
+
+  it("transitions to rescue_breathing on head_tilt_chin_lift from pulse_no_breathing", () => {
+    advanceToAssessment("pathb-1");
+    processAction("pathb-1", "check_pulse_breathing", 20);
+    const result = processAction("pathb-1", "head_tilt_chin_lift", 25);
+    expect(result.success).toBe(true);
+    expect(result.new_bls_step).toBe("rescue_breathing");
+  });
+
+  it("transitions to rescue_breathing on jaw_thrust from pulse_no_breathing", () => {
+    createScenario({
+      case_id: "pathb-jt",
+      patient: { age: 30, sex: "M", weight_kg: 80, history: "Trauma" },
+      presentation: "MVC with c-spine precaution",
+      initial_vitals: {
+        hr: 65, rhythm: "sinus", bp_systolic: 110, bp_diastolic: 70,
+        spo2: 78, rr: 0, gcs: 3, pupils: "equal", skin: "pale",
+      },
+      scenario_type: "respiratory_arrest",
+    });
+    advanceToAssessment("pathb-jt");
+    processAction("pathb-jt", "check_pulse_breathing", 20);
+    const result = processAction("pathb-jt", "jaw_thrust", 25);
+    expect(result.success).toBe(true);
+    expect(result.new_bls_step).toBe("rescue_breathing");
+  });
 });

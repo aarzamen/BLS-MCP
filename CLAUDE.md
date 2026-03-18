@@ -47,6 +47,7 @@ All tools include ChatGPT-compliant annotations (readOnlyHint, destructiveHint, 
 - **Path A** (Cardiac Arrest): scene safety → responsiveness → EMS → pulse check → CPR → AED → shock/no-shock loop
 - **Path B** (Respiratory Arrest): scene safety → responsiveness → EMS → pulse check (pulse present, no breathing) → rescue breathing → reassess q2min → ROSC or deteriorate to Path A
 - **Opioid Overdose**: Path B + `administer_naloxone` action
+- **Airway actions**: `head_tilt_chin_lift`, `jaw_thrust`, `suction_airway`, `apply_bvm` valid at appropriate steps
 
 ## File layout
 ```
@@ -94,7 +95,8 @@ data/                   — Runtime JSON storage (gitignored)
 - Tool files use `StorageAdapter` interface from types.ts (not concrete class)
 - Tool files export a `set*StorageManager()` setter for dependency injection
 - Tool handlers return `{ content: [{ type: "text", text: JSON.stringify(...) }] }`
-- Dashboard communicates with host via `window.parent.postMessage()`
+- Dashboard communicates with host via `window.parent.postMessage()` (MCP mode) or REST API (standalone mode)
+- Standalone /app serves same dashboard with REST API at /app/api/*
 - Tests use temp directories (`mkdtemp`) cleaned up in `afterEach`
 
 ## Testing
@@ -103,7 +105,23 @@ data/                   — Runtime JSON storage (gitignored)
 - Run: `npm test` — expects all tests to pass
 - Tests cover: BLS algorithm (Path A + Path B), storage, search, compare, progress, generate case, tool registration, integration scenarios
 
+## Deployment
+- **Domain**: bls.constellation-memory.com (Cloudflare)
+- **MCP endpoint**: /mcp (streamable HTTP)
+- **Standalone app**: /app (full browser dashboard with demo mode)
+- **REST API**: /app/api/* (mirrors MCP tools)
+- **Landing page**: /
+- **Privacy policy**: /privacy
+- **Verification**: /.well-known/openai-apps-challenge
+
 ## Decision Log
+- 2026-03-18: Sprint 3 continued — Enhanced dashboard with sparklines, SpO2-based
+  cyanosis, carotid pulse animation, scanline overlay, visual metronome bar.
+  Added debrief card with grade badge and quality metric bars. Added student
+  progress charts with trend lines and common error bars. Added REST API at
+  /app/api/* for standalone operation. Added head_tilt_chin_lift and jaw_thrust
+  airway actions. Fixed deliver_shock duplicate case bug. Fixed DurableStorageManager
+  SQL cursor API (.toArray() not .results).
 - 2026-03-16: Sprint 3 — Deployed to Cloudflare Workers for cross-platform
   access. Added respiratory arrest path (Path B) to state machine. Added
   naloxone action. Fixed UI resource registration. Added ChatGPT tool
