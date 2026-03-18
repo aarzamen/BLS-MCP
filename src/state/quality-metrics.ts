@@ -77,7 +77,6 @@ export function updateMetricsForAction(
 
     case "check_rhythm":
     case "analyze_rhythm":
-    case "deliver_shock":
     case "rosc_assessment":
       // CPR pauses for these actions
       if (
@@ -88,6 +87,12 @@ export function updateMetricsForAction(
       break;
 
     case "deliver_shock":
+      // CPR pauses for shock delivery
+      if (
+        state.cpr_start_times.length > state.cpr_stop_times.length
+      ) {
+        state.cpr_stop_times.push(timestampSec);
+      }
       state.metrics.shock_count++;
       break;
 

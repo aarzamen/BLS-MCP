@@ -12,7 +12,7 @@ import {
 } from "../src/types.js";
 
 interface SqlStorage {
-  exec(query: string, ...bindings: unknown[]): { results: unknown[] };
+  exec<T extends Record<string, unknown> = Record<string, unknown>>(query: string, ...bindings: unknown[]): { toArray(): T[] };
 }
 
 export class DurableStorageManager {
@@ -47,7 +47,7 @@ export class DurableStorageManager {
     const rows = this.sql.exec(
       `SELECT state_json, debrief_json, student_id, scenario_type FROM scenarios WHERE case_id = ?`,
       caseId
-    ).results as Array<{ state_json: string; debrief_json: string; student_id: string | null; scenario_type: string }>;
+    ).toArray() as Array<{ state_json: string; debrief_json: string; student_id: string | null; scenario_type: string }>;
 
     if (rows.length === 0) return null;
 
@@ -55,7 +55,7 @@ export class DurableStorageManager {
     const noteRows = this.sql.exec(
       `SELECT note, category, created_at FROM instructor_notes WHERE case_id = ? ORDER BY created_at`,
       caseId
-    ).results as Array<{ note: string; category: string; created_at: string }>;
+    ).toArray() as Array<{ note: string; category: string; created_at: string }>;
 
     return {
       state: JSON.parse(row.state_json),
@@ -74,7 +74,7 @@ export class DurableStorageManager {
     const rows = this.sql.exec(
       `SELECT case_id, date, student_id, outcome, grade, scenario_type, duration_sec, state_json, debrief_json
        FROM scenarios ORDER BY date DESC`
-    ).results as Array<{
+    ).toArray() as Array<{
       case_id: string; date: string; student_id: string | null;
       outcome: string; grade: string; scenario_type: string;
       duration_sec: number; debrief_json: string;
@@ -103,7 +103,7 @@ export class DurableStorageManager {
     const rows = this.sql.exec(
       `SELECT case_id, date FROM scenarios WHERE student_id = ? ORDER BY date`,
       studentId
-    ).results as Array<{ case_id: string; date: string }>;
+    ).toArray() as Array<{ case_id: string; date: string }>;
 
     if (rows.length === 0) return null;
 
@@ -118,7 +118,7 @@ export class DurableStorageManager {
   async listStudents(): Promise<StudentRecord[]> {
     const rows = this.sql.exec(
       `SELECT DISTINCT student_id FROM scenarios WHERE student_id IS NOT NULL`
-    ).results as Array<{ student_id: string }>;
+    ).toArray() as Array<{ student_id: string }>;
 
     const records: StudentRecord[] = [];
     for (const row of rows) {
@@ -140,7 +140,7 @@ export class DurableStorageManager {
     const exists = this.sql.exec(
       `SELECT 1 FROM scenarios WHERE case_id = ?`,
       caseId
-    ).results;
+    ).toArray();
     if (exists.length === 0) return false;
 
     this.sql.exec(
@@ -190,7 +190,7 @@ export class DurableStorageManager {
         const noteCount = this.sql.exec(
           `SELECT COUNT(*) as cnt FROM instructor_notes WHERE case_id = ?`,
           entry.case_id
-        ).results as Array<{ cnt: number }>;
+        ).toArray() as Array<{ cnt: number }>;
         if (noteCount[0]?.cnt > 0) {
           withNotes.push(entry);
         }

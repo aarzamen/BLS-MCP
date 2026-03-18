@@ -25,8 +25,8 @@ interface Env {
 
 export class BLSScenarioAgent extends McpAgent<Env, {}, {}> {
   server = new McpServer({
-    name: "bls-scenario",
-    version: "1.0.0",
+    name: "BLS.ai",
+    version: "3.0.0",
   });
 
   async init() {
@@ -96,7 +96,7 @@ export default {
       });
     }
 
-    if (url.pathname === "/ui/dashboard" || url.pathname === "/ui/dashboard.html") {
+    if (url.pathname === "/app" || url.pathname === "/app/" || url.pathname === "/ui/dashboard" || url.pathname === "/ui/dashboard.html") {
       return new Response(DASHBOARD_HTML, {
         headers: { "content-type": "text/html; charset=utf-8" },
       });
