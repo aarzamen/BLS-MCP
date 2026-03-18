@@ -16,7 +16,7 @@ const VALID_ACTIONS: Record<BLSStep, BLSAction[]> = {
   no_pulse_breathing: ["start_compressions"],
 
   // Respiratory arrest path (Path B) — initial branch
-  pulse_no_breathing: ["open_airway", "give_breaths", "apply_bvm", "suction_airway"],
+  pulse_no_breathing: ["open_airway", "head_tilt_chin_lift", "jaw_thrust", "give_breaths", "apply_bvm", "suction_airway"],
 
   cpr_in_progress: [
     "apply_aed",
@@ -61,6 +61,8 @@ const VALID_ACTIONS: Record<BLSStep, BLSAction[]> = {
     "apply_bvm",
     "check_pulse_breathing",
     "open_airway",
+    "head_tilt_chin_lift",
+    "jaw_thrust",
     "suction_airway",
     "advanced_airway",
     "administer_naloxone",
@@ -89,6 +91,8 @@ const TRANSITIONS: Record<string, BLSStep> = {
   "no_pulse_no_breathing:start_compressions": "cpr_in_progress",
   "no_pulse_breathing:start_compressions": "cpr_in_progress",
   "pulse_no_breathing:open_airway": "rescue_breathing",
+  "pulse_no_breathing:head_tilt_chin_lift": "rescue_breathing",
+  "pulse_no_breathing:jaw_thrust": "rescue_breathing",
   "pulse_no_breathing:give_breaths": "rescue_breathing",
   "pulse_no_breathing:apply_bvm": "rescue_breathing",
   "pulse_no_breathing:suction_airway": "rescue_breathing",
@@ -129,6 +133,8 @@ const TRANSITIONS: Record<string, BLSStep> = {
   "rescue_breathing:apply_bvm": "rescue_breathing",
   "rescue_breathing:check_pulse_breathing": "rescue_breathing_reassess",
   "rescue_breathing:open_airway": "rescue_breathing",
+  "rescue_breathing:head_tilt_chin_lift": "rescue_breathing",
+  "rescue_breathing:jaw_thrust": "rescue_breathing",
   "rescue_breathing:suction_airway": "rescue_breathing",
   "rescue_breathing:advanced_airway": "rescue_breathing",
   "rescue_breathing:administer_naloxone": "rescue_breathing",
@@ -170,6 +176,8 @@ export const ACTION_LABELS: Record<BLSAction, string> = {
   apply_bvm: "Bag-valve-mask ventilation initiated",
   suction_airway: "Airway suctioned",
   recovery_position: "Patient placed in recovery position",
+  head_tilt_chin_lift: "Head-tilt chin-lift maneuver performed",
+  jaw_thrust: "Jaw-thrust maneuver performed (suspected c-spine)",
 };
 
 export function getValidActions(step: BLSStep): BLSAction[] {

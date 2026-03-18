@@ -46,7 +46,9 @@ export type BLSAction =
   | "administer_naloxone"
   | "apply_bvm"
   | "suction_airway"
-  | "recovery_position";
+  | "recovery_position"
+  | "head_tilt_chin_lift"
+  | "jaw_thrust";
 
 export type BLSStep =
   | "scene_safety"

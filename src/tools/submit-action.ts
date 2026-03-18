@@ -42,6 +42,8 @@ export const SUBMIT_ACTION_TOOL = {
           "apply_bvm",
           "suction_airway",
           "recovery_position",
+          "head_tilt_chin_lift",
+          "jaw_thrust",
         ],
       },
       timestamp_sec: {

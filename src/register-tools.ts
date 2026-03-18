@@ -23,6 +23,7 @@ const BLS_ACTIONS = [
   "switch_compressor", "establish_iv", "give_epinephrine", "give_amiodarone",
   "advanced_airway", "check_rhythm", "rosc_assessment", "post_rosc_care",
   "administer_naloxone", "apply_bvm", "suction_airway", "recovery_position",
+  "head_tilt_chin_lift", "jaw_thrust",
 ] as const;
 
 export function registerTools(server: McpServer, getDashboardHtml?: () => string): void {
