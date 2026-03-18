@@ -8,12 +8,12 @@
 /* ── Reset & Base ────────────────────────────────────────── */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:#0a0e14;--bg2:#111820;--bg3:#182028;--border:#1e2a36;
+  --bg:#0a0a0f;--bg2:#0f1118;--bg3:#161b26;--border:#1e2a36;
   --cyan:#00e5ff;--cyan-dim:#00849a;--red:#ff1744;--red-dim:#7a1020;
   --amber:#ffab00;--amber-dim:#7a5500;--green:#00e676;--green-dim:#00703a;
-  --text:#c8d6e0;--text-dim:#5a6a78;--white:#eaf0f4;
-  --mono:'Menlo','Cascadia Mono','Consolas','Liberation Mono',monospace;
-  --sans:'Inter','SF Pro Display','Segoe UI',system-ui,sans-serif;
+  --text:#e0e6ed;--text-dim:#5a6577;--white:#eaf0f4;
+  --mono:'SF Mono','Fira Code','JetBrains Mono','Cascadia Mono','Consolas',monospace;
+  --sans:system-ui,-apple-system,sans-serif;
 }
 html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--mono);font-size:13px;overflow:hidden}
 
@@ -167,6 +167,71 @@ body.demo-mode #demo-banner{display:block}
 #audio-toggle{font-family:var(--mono);font-size:10px;padding:2px 8px;border:1px solid var(--border);border-radius:3px;background:var(--bg3);color:var(--text-dim);cursor:pointer;transition:all .15s}
 #audio-toggle:hover{border-color:var(--cyan-dim)}
 #audio-toggle.muted{color:var(--red);border-color:var(--red-dim)}
+
+/* ── Scanline Overlay ─────────────────────────────────── */
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:9999;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.06) 2px,rgba(0,0,0,.06) 4px);
+  mix-blend-mode:multiply}
+body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:9998;
+  background:radial-gradient(ellipse at center,transparent 60%,rgba(0,0,0,.35) 100%);
+  mix-blend-mode:multiply}
+
+/* ── Sparkline ────────────────────────────────────────── */
+.vital-spark{display:block;height:16px;margin-top:2px}
+.vital-spark polyline{stroke-width:1.2;fill:none;stroke-linejoin:round;stroke-linecap:round}
+
+/* ── Visual Metronome Bar ─────────────────────────────── */
+#metronome-bar{display:none;position:fixed;bottom:0;left:0;right:0;height:4px;z-index:200;background:var(--bg)}
+#metronome-bar.active{display:block}
+#metronome-fill{height:100%;background:var(--cyan);box-shadow:0 0 8px var(--cyan);transition:width .1s linear;width:0}
+@keyframes metronome-pulse{0%{width:0}50%{width:100%}100%{width:0}}
+#metronome-bar.active #metronome-fill{animation:metronome-pulse 0.545s ease-in-out infinite}
+
+/* ── Carotid Pulse Point ──────────────────────────────── */
+@keyframes carotid-pulse{0%,100%{r:3;opacity:.6}50%{r:5;opacity:1}}
+.carotid-active{animation:carotid-pulse 1s ease-in-out infinite}
+
+/* ── Debrief View ─────────────────────────────────────── */
+#debrief-panel{display:none;grid-column:1/-1;grid-row:2/5;background:var(--bg);overflow-y:auto;padding:20px;z-index:10}
+#debrief-panel.visible{display:block}
+.debrief-grade{text-align:center;padding:24px 0 16px}
+.debrief-grade .grade-badge{display:inline-block;font-size:28px;font-weight:700;padding:12px 32px;border-radius:6px;letter-spacing:2px;text-transform:uppercase}
+.grade-badge.Competent{color:var(--green);border:2px solid var(--green);background:rgba(0,230,118,.06);box-shadow:0 0 20px rgba(0,230,118,.15)}
+.grade-badge.NeedsPractice{color:var(--amber);border:2px solid var(--amber);background:rgba(255,171,0,.06);box-shadow:0 0 20px rgba(255,171,0,.15)}
+.grade-badge.SpecificDeficiency{color:var(--red);border:2px solid var(--red);background:rgba(255,23,68,.06);box-shadow:0 0 20px rgba(255,23,68,.15)}
+.debrief-sections{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-top:16px}
+.debrief-section{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:14px}
+.debrief-section h3{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--cyan);margin-bottom:10px}
+.debrief-metric-bar{margin:6px 0}
+.debrief-metric-bar .bar-label{font-size:10px;color:var(--text-dim);display:flex;justify-content:space-between;margin-bottom:3px}
+.debrief-metric-bar .bar-track{height:8px;background:var(--bg3);border-radius:4px;overflow:hidden}
+.debrief-metric-bar .bar-fill{height:100%;border-radius:4px;transition:width .6s ease}
+.debrief-list{list-style:none;padding:0}
+.debrief-list li{font-size:11px;padding:3px 0;border-bottom:1px solid var(--border)}
+.debrief-list li:last-child{border-bottom:none}
+.debrief-list li::before{margin-right:6px;font-size:9px}
+.debrief-list.good li::before{content:'✓';color:var(--green)}
+.debrief-list.bad li::before{content:'✗';color:var(--red)}
+.debrief-list.teach li::before{content:'→';color:var(--cyan)}
+.debrief-actions{text-align:center;margin-top:20px;display:flex;gap:12px;justify-content:center}
+.debrief-btn{font-family:var(--mono);font-size:12px;padding:8px 20px;border:1px solid var(--cyan);border-radius:4px;background:rgba(0,229,255,.08);color:var(--cyan);cursor:pointer;transition:all .15s}
+.debrief-btn:hover{background:rgba(0,229,255,.18)}
+
+/* ── Student Progress View ────────────────────────────── */
+#progress-panel{display:none;grid-column:1/-1;grid-row:2/5;background:var(--bg);overflow-y:auto;padding:20px;z-index:10}
+#progress-panel.visible{display:block}
+.progress-header{text-align:center;margin-bottom:20px}
+.progress-header h2{color:var(--cyan);font-size:16px;text-transform:uppercase;letter-spacing:2px}
+.progress-stats{display:flex;gap:20px;justify-content:center;margin:12px 0}
+.progress-stat{text-align:center}
+.progress-stat .stat-val{font-size:24px;font-weight:700;color:var(--cyan)}
+.progress-stat .stat-label{font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--text-dim)}
+.progress-charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+.chart-card{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:14px}
+.chart-card h3{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--cyan);margin-bottom:10px}
+.chart-card svg{width:100%;display:block}
+.weak-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.weak-tag{font-size:10px;padding:2px 8px;border-radius:3px;background:rgba(255,23,68,.1);color:var(--red);border:1px solid var(--red-dim)}
 </style>
 </head>
 <body>
@@ -222,6 +287,9 @@ body.demo-mode #demo-banner{display:block}
 
 <div id="feedback-bar"></div>
 <div id="demo-banner">DEMO MODE</div>
+<div id="metronome-bar"><div id="metronome-fill"></div></div>
+<div id="debrief-panel"></div>
+<div id="progress-panel"></div>
 
 <script>
 // ═══════════════════════════════════════════════════════════
@@ -249,7 +317,13 @@ const ACTION_LABELS = {
   advanced_airway:         'Advanced Airway',
   check_rhythm:            'Check Rhythm (2min)',
   rosc_assessment:         'Assess for ROSC',
-  post_rosc_care:          'Post-ROSC Care'
+  post_rosc_care:          'Post-ROSC Care',
+  administer_naloxone:     'Give Naloxone',
+  apply_bvm:               'Apply BVM',
+  suction_airway:          'Suction Airway',
+  recovery_position:       'Recovery Position',
+  head_tilt_chin_lift:     'Head-Tilt Chin-Lift',
+  jaw_thrust:              'Jaw Thrust'
 };
 
 // ── BLS algorithm step definitions ──────────────────────
@@ -268,7 +342,9 @@ const ALGO_CARDIAC = [
   { id: 'rhythm_check',     label: 'Rhythm Check (2 min)' }
 ];
 const ALGO_RESPIRATORY = [
-  { id: 'rescue_breathing', label: 'Rescue Breathing' }
+  { id: 'pulse_no_breathing', label: 'Pulse Present / No Breathing' },
+  { id: 'rescue_breathing', label: 'Rescue Breathing (1 per 5-6s)' },
+  { id: 'rescue_breathing_reassess', label: 'Reassess (2 min)' }
 ];
 const ALGO_TERMINAL = [
   { id: 'rosc',            label: 'ROSC Achieved' },
@@ -282,6 +358,8 @@ let timerInterval = null;
 let demoMode = false;
 let previousErrors = [];
 let previousGoodCalls = [];
+// Sparkline history: last 20 data points per vital
+const sparkHistory = { hr: [], bp: [], spo2: [], gcs: [] };
 
 // ── Communication ───────────────────────────────────────
 window.addEventListener('message', (event) => {
@@ -377,9 +455,12 @@ function renderPatient(s) {
     || (s.timeline && s.timeline.some(e => e.action === 'apply_aed'));
   const airwayManaged = s.timeline && s.timeline.some(e => ['open_airway','advanced_airway'].includes(e.action));
   const skin = s.vitals ? s.vitals.skin : '';
-  const skinColor = skin === 'cyanotic' ? '#4a6a8a' : skin === 'pale' ? '#8a9aa8' : '#6a8898';
+  const spo2 = s.vitals ? (s.vitals.spo2 || 0) : 0;
+  // SpO2-based cyanosis: lower SpO2 = more blue/gray
+  const skinColor = spo2 === 0 ? '#3a4a6a' : spo2 < 70 ? '#4a5a7a' : spo2 < 85 ? '#5a6a8a' : spo2 < 94 ? '#6a8898' : '#7a9aa8';
+  const checkingPulse = step === 'pulse_breathing_check' || step === 'rescue_breathing_reassess';
 
-  wrap.innerHTML = buildPatientSVG(skinColor, compressing, aedApplied, airwayManaged);
+  wrap.innerHTML = buildPatientSVG(skinColor, compressing, aedApplied, airwayManaged, checkingPulse);
 
   // Demographics
   const info = document.getElementById('patient-info');
@@ -395,7 +476,7 @@ function renderPatient(s) {
   }
 }
 
-function buildPatientSVG(skinColor, compressing, aedApplied, airwayManaged) {
+function buildPatientSVG(skinColor, compressing, aedApplied, airwayManaged, checkingPulse) {
   const chestAnim = compressing ? 'style="animation:chest-compress .4s ease-in-out infinite"' : '';
   const chestHighlight = compressing ? '#ff174430' : 'none';
   const padOpacity = aedApplied ? '1' : '0';
@@ -407,6 +488,9 @@ function buildPatientSVG(skinColor, compressing, aedApplied, airwayManaged) {
     // Airway indicator
     '<line x1="60" y1="52" x2="60" y2="68" stroke="' + airwayColor + '" stroke-width="2.5" stroke-linecap="round" opacity="' + (airwayManaged ? '1' : '0') + '"/>' +
     (airwayManaged ? '<circle cx="60" cy="56" r="3" fill="' + airwayColor + '" opacity=".6"/>' : '') +
+    // Carotid pulse point
+    (checkingPulse ? '<circle cx="52" cy="50" r="3" fill="var(--amber)" opacity=".8" class="carotid-active"><animate attributeName="r" values="3;5;3" dur="1s" repeatCount="indefinite"/></circle>' +
+    '<circle cx="68" cy="50" r="3" fill="var(--amber)" opacity=".8" class="carotid-active"><animate attributeName="r" values="3;5;3" dur="1s" repeatCount="indefinite" begin=".5s"/></circle>' : '') +
     // Neck
     '<line x1="60" y1="52" x2="60" y2="62" stroke="' + skinColor + '" stroke-width="1.5"/>' +
     // Torso
@@ -447,30 +531,53 @@ function buildPatientSVG(skinColor, compressing, aedApplied, airwayManaged) {
 // ── Vitals ──────────────────────────────────────────────
 function renderVitals(s) {
   const v = s.vitals || {};
+  // Track sparkline history
+  if (v.hr != null) { sparkHistory.hr.push(v.hr); if (sparkHistory.hr.length > 20) sparkHistory.hr.shift(); }
+  if (v.bp_systolic != null) { sparkHistory.bp.push(v.bp_systolic); if (sparkHistory.bp.length > 20) sparkHistory.bp.shift(); }
+  if (v.spo2 != null) { sparkHistory.spo2.push(v.spo2); if (sparkHistory.spo2.length > 20) sparkHistory.spo2.shift(); }
+  if (v.gcs != null) { sparkHistory.gcs.push(v.gcs); if (sparkHistory.gcs.length > 20) sparkHistory.gcs.shift(); }
+
   const vitals = [
     { label: 'HR', value: v.hr != null ? v.hr : '—', unit: 'bpm',
       cls: vitalClass(v.hr, [60, 100], [40, 150]),
-      pulse: v.hr > 0 },
+      pulse: v.hr > 0, spark: sparkHistory.hr },
     { label: 'BP', value: v.bp_systolic != null ? v.bp_systolic + '/' + v.bp_diastolic : '—', unit: 'mmHg',
-      cls: vitalClass(v.bp_systolic, [90, 140], [70, 180]) },
+      cls: vitalClass(v.bp_systolic, [90, 140], [70, 180]), spark: sparkHistory.bp },
     { label: 'SpO2', value: v.spo2 != null ? v.spo2 : '—', unit: '%',
-      cls: vitalClass(v.spo2, [94, 100], [88, 100]) },
+      cls: vitalClass(v.spo2, [94, 100], [88, 100]), spark: sparkHistory.spo2 },
     { label: 'Rhythm', value: v.rhythm || s.rhythm || '—', unit: '',
-      cls: rhythmClass(v.rhythm || s.rhythm) },
+      cls: rhythmClass(v.rhythm || s.rhythm), spark: null },
     { label: 'GCS', value: v.gcs != null ? v.gcs : '—', unit: '/15',
-      cls: vitalClass(v.gcs, [13, 15], [9, 15]) }
+      cls: vitalClass(v.gcs, [13, 15], [9, 15]), spark: sparkHistory.gcs }
   ];
 
   const el = document.getElementById('vitals');
   el.innerHTML = vitals.map(vt => {
     const cardCls = vt.cls === 'critical' ? ' critical' : vt.cls === 'warning' ? ' warning' : '';
     const pulseCls = vt.pulse ? ' has-pulse' : '';
+    const sparkSvg = vt.spark && vt.spark.length > 1 ? buildSparkline(vt.spark, vt.cls) : '';
     return '<div class="vital-card' + cardCls + '">' +
       '<div class="vital-label">' + vt.label + '</div>' +
       '<div class="vital-value ' + vt.cls + pulseCls + '">' + vt.value + '</div>' +
       '<div class="vital-sub">' + vt.unit + '</div>' +
+      sparkSvg +
       '</div>';
   }).join('');
+}
+
+function buildSparkline(data, cls) {
+  if (data.length < 2) return '';
+  const w = 60, h = 16;
+  const min = Math.min(...data), max = Math.max(...data);
+  const range = max - min || 1;
+  const points = data.map((v, i) => {
+    const x = (i / (data.length - 1)) * w;
+    const y = h - ((v - min) / range) * (h - 2) - 1;
+    return x.toFixed(1) + ',' + y.toFixed(1);
+  }).join(' ');
+  const color = cls === 'critical' ? 'var(--red)' : cls === 'warning' ? 'var(--amber)' : 'var(--green)';
+  return '<svg class="vital-spark" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="none">' +
+    '<polyline points="' + points + '" stroke="' + color + '" opacity=".6"/></svg>';
 }
 
 function vitalClass(val, normalRange, warnRange) {
@@ -521,7 +628,8 @@ function renderAlgo(s) {
   // Determine which path to show
   const isCardiac = ['cpr_in_progress','aed_applied','rhythm_analysis','shock_delivered','cpr_post_shock','rhythm_check'].includes(step)
     || completedActions.some(a => ['start_compressions','apply_aed'].includes(a));
-  const isRespiratory = step === 'rescue_breathing' || completedActions.includes('give_breaths_rescue');
+  const isRespiratory = ['pulse_no_breathing','rescue_breathing','rescue_breathing_reassess'].includes(step)
+    || completedActions.includes('administer_naloxone');
   const isROSC = ['rosc','post_rosc_care'].includes(step);
 
   // Map bls_step to step IDs for status
@@ -538,7 +646,9 @@ function renderAlgo(s) {
     'shock_delivered': ['deliver_shock'],
     'cpr_post_shock': ['resume_cpr'],
     'rhythm_check': ['check_rhythm'],
-    'rescue_breathing': ['give_breaths'],
+    'pulse_no_breathing': ['check_pulse_breathing'],
+    'rescue_breathing': ['give_breaths','apply_bvm','administer_naloxone','open_airway'],
+    'rescue_breathing_reassess': ['check_pulse_breathing'],
     'rosc': ['rosc_assessment'],
     'post_rosc_care': ['post_rosc_care']
   };
@@ -834,12 +944,15 @@ function handleAudioForStep(state) {
   if (step === lastAudioStep) return;
   lastAudioStep = step;
 
-  // Metronome during compressions
+  // Metronome during compressions (audio + visual bar)
   const compressing = ['cpr_in_progress', 'cpr_post_shock'].includes(step);
+  const metroBar = document.getElementById('metronome-bar');
   if (compressing) {
     startMetronome();
+    if (metroBar) metroBar.classList.add('active');
   } else {
     stopMetronome();
+    if (metroBar) metroBar.classList.remove('active');
   }
 
   // AED voice prompts
@@ -871,6 +984,197 @@ updateDashboard = function(state) {
   _origUpdateDashboard(state);
   handleAudioForStep(state);
 };
+
+// ═══════════════════════════════════════════════════════════
+//  Debrief View (Group 4)
+// ═══════════════════════════════════════════════════════════
+
+function showDebrief(debrief) {
+  if (!debrief) return;
+  const panel = document.getElementById('debrief-panel');
+  const gradeClass = debrief.grade === 'Competent' ? 'Competent' :
+    debrief.grade === 'Needs Practice' ? 'NeedsPractice' : 'SpecificDeficiency';
+  const m = debrief.quality_metrics || {};
+  const cf = m.compression_fraction != null ? Math.round(m.compression_fraction * 100) : 0;
+  const ttfc = m.time_to_first_compression != null ? m.time_to_first_compression : null;
+
+  let html = '<div class="debrief-grade">' +
+    '<div class="grade-badge ' + gradeClass + '">' + esc(debrief.grade) + '</div>' +
+    '<div style="color:var(--text-dim);margin-top:8px;font-size:12px">Outcome: ' + esc(debrief.outcome) + '</div>' +
+    '</div>';
+
+  html += '<div class="debrief-sections">';
+  // Quality Metrics bars
+  html += '<div class="debrief-section"><h3>Quality Metrics</h3>';
+  html += metricBar('Compression Fraction', cf, 100, cf >= 80 ? 'var(--green)' : cf >= 60 ? 'var(--amber)' : 'var(--red)', cf + '%');
+  if (ttfc !== null) {
+    const ttfcPct = Math.min(100, (ttfc / 120) * 100);
+    html += metricBar('Time to First Compression', ttfcPct, 100, ttfc <= 30 ? 'var(--green)' : ttfc <= 60 ? 'var(--amber)' : 'var(--red)', ttfc + 's');
+  }
+  html += metricBar('CPR Cycles', (m.cpr_cycle_count || 0), 10, 'var(--cyan)', (m.cpr_cycle_count || 0));
+  html += metricBar('Shocks Delivered', (m.shock_count || 0), 5, 'var(--amber)', (m.shock_count || 0));
+  html += '</div>';
+
+  // What went well
+  html += '<div class="debrief-section"><h3>What Went Well</h3><ul class="debrief-list good">';
+  (debrief.what_went_well || []).slice(0, 8).forEach(function(w) {
+    html += '<li>' + esc(w.replace(/^\d+s:\s*/, '')) + '</li>';
+  });
+  if ((debrief.what_went_well || []).length === 0) html += '<li style="color:var(--text-dim)">No specific strengths recorded</li>';
+  html += '</ul></div>';
+
+  // Areas for improvement
+  html += '<div class="debrief-section"><h3>Areas for Improvement</h3><ul class="debrief-list bad">';
+  (debrief.areas_for_improvement || []).slice(0, 8).forEach(function(a) {
+    html += '<li>' + esc(a.replace(/^\d+s:\s*/, '')) + '</li>';
+  });
+  if ((debrief.areas_for_improvement || []).length === 0) html += '<li style="color:var(--text-dim)">No issues identified</li>';
+  html += '</ul></div>';
+
+  // Teaching points
+  html += '<div class="debrief-section"><h3>Teaching Points</h3><ul class="debrief-list teach">';
+  (debrief.teaching_points || []).forEach(function(t) { html += '<li>' + esc(t) + '</li>'; });
+  html += '</ul></div>';
+  html += '</div>';
+
+  // Actions
+  html += '<div class="debrief-actions">' +
+    '<button class="debrief-btn" onclick="hideDebrief()">Back to Scenario</button>' +
+    '<button class="debrief-btn" onclick="exportDebrief()">Export Card</button>' +
+    '</div>';
+
+  panel.innerHTML = html;
+  panel.classList.add('visible');
+}
+
+function metricBar(label, value, max, color, display) {
+  const pct = Math.min(100, (value / max) * 100);
+  return '<div class="debrief-metric-bar">' +
+    '<div class="bar-label"><span>' + label + '</span><span style="color:var(--white)">' + display + '</span></div>' +
+    '<div class="bar-track"><div class="bar-fill" style="width:' + pct + '%;background:' + color + ';box-shadow:0 0 6px ' + color + '"></div></div></div>';
+}
+
+function hideDebrief() {
+  document.getElementById('debrief-panel').classList.remove('visible');
+}
+
+function exportDebrief() {
+  // Copy debrief as text
+  const panel = document.getElementById('debrief-panel');
+  const text = panel.innerText;
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(function() {
+      addToast(document.getElementById('feedback-bar'), 'Debrief copied to clipboard', 'good');
+    });
+  }
+}
+
+// Hook: detect end_scenario result and show debrief
+const _origMsg = window.addEventListener;
+window.addEventListener('message', function(event) {
+  if (event.data && event.data.type === 'context_update' && event.data.debrief) {
+    showDebrief(event.data.debrief);
+  }
+});
+
+// ═══════════════════════════════════════════════════════════
+//  Student Progress View (Group 5)
+// ═══════════════════════════════════════════════════════════
+
+function showStudentProgress(data) {
+  if (!data) return;
+  const panel = document.getElementById('progress-panel');
+
+  let html = '<div class="progress-header">' +
+    '<h2>Student: ' + esc(data.student_id) + '</h2>' +
+    '<div class="progress-stats">' +
+    '<div class="progress-stat"><div class="stat-val">' + data.total_scenarios + '</div><div class="stat-label">Sessions</div></div>' +
+    '<div class="progress-stat"><div class="stat-val">' + Math.round((data.pass_rate || 0) * 100) + '%</div><div class="stat-label">Pass Rate</div></div>' +
+    '</div></div>';
+
+  html += '<div class="progress-charts">';
+
+  // Compression Fraction trend
+  if (data.metrics_over_time && data.metrics_over_time.compression_fraction) {
+    html += '<div class="chart-card"><h3>Compression Fraction Over Time</h3>' +
+      buildLineChart(data.metrics_over_time.compression_fraction, 0, 1, 'var(--cyan)', 0.8) + '</div>';
+  }
+
+  // Time to First Compression trend
+  if (data.metrics_over_time && data.metrics_over_time.time_to_first_compression) {
+    const ttfcData = data.metrics_over_time.time_to_first_compression.filter(function(v) { return v >= 0; });
+    if (ttfcData.length > 0) {
+      html += '<div class="chart-card"><h3>Time to First Compression</h3>' +
+        buildLineChart(ttfcData, 0, 120, 'var(--amber)', 30) + '</div>';
+    }
+  }
+
+  // Common errors
+  if (data.common_errors && data.common_errors.length > 0) {
+    html += '<div class="chart-card"><h3>Common Errors</h3>';
+    const maxFreq = Math.max(...data.common_errors.map(function(e) { return e.frequency; }));
+    data.common_errors.slice(0, 6).forEach(function(e) {
+      const pct = (e.frequency / maxFreq) * 100;
+      html += '<div class="debrief-metric-bar">' +
+        '<div class="bar-label"><span style="font-size:10px">' + esc(e.error.substring(0, 40)) + '</span><span>' + e.frequency + 'x</span></div>' +
+        '<div class="bar-track"><div class="bar-fill" style="width:' + pct + '%;background:var(--red)"></div></div></div>';
+    });
+    html += '</div>';
+  }
+
+  // Weak areas
+  if (data.weak_areas && data.weak_areas.length > 0) {
+    html += '<div class="chart-card"><h3>Identified Weak Areas</h3><div class="weak-tags">';
+    data.weak_areas.forEach(function(w) {
+      html += '<span class="weak-tag">' + esc(w) + '</span>';
+    });
+    html += '</div></div>';
+  }
+
+  html += '</div>';
+  html += '<div class="debrief-actions"><button class="debrief-btn" onclick="hideProgress()">Close</button></div>';
+
+  panel.innerHTML = html;
+  panel.classList.add('visible');
+}
+
+function buildLineChart(data, min, max, color, targetLine) {
+  if (!data || data.length < 2) return '<div style="color:var(--text-dim);font-size:11px">Insufficient data</div>';
+  const w = 280, h = 80, pad = 4;
+  const range = max - min || 1;
+  const points = data.map(function(v, i) {
+    const x = pad + (i / (data.length - 1)) * (w - pad * 2);
+    const y = pad + (1 - (v - min) / range) * (h - pad * 2);
+    return x.toFixed(1) + ',' + y.toFixed(1);
+  }).join(' ');
+
+  let svg = '<svg viewBox="0 0 ' + w + ' ' + h + '" style="height:80px">';
+  // Target line
+  if (targetLine != null) {
+    const ty = pad + (1 - (targetLine - min) / range) * (h - pad * 2);
+    svg += '<line x1="' + pad + '" y1="' + ty.toFixed(1) + '" x2="' + (w - pad) + '" y2="' + ty.toFixed(1) + '" stroke="var(--green)" stroke-width=".5" stroke-dasharray="4,3" opacity=".5"/>';
+  }
+  svg += '<polyline points="' + points + '" fill="none" stroke="' + color + '" stroke-width="1.5" stroke-linejoin="round"/>';
+  // Data points
+  data.forEach(function(v, i) {
+    const x = pad + (i / (data.length - 1)) * (w - pad * 2);
+    const y = pad + (1 - (v - min) / range) * (h - pad * 2);
+    svg += '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="2" fill="' + color + '"/>';
+  });
+  svg += '</svg>';
+  return svg;
+}
+
+function hideProgress() {
+  document.getElementById('progress-panel').classList.remove('visible');
+}
+
+// Listen for student progress data
+window.addEventListener('message', function(event) {
+  if (event.data && event.data.type === 'student_progress') {
+    showStudentProgress(event.data.data);
+  }
+});
 
 // ═══════════════════════════════════════════════════════════
 //  Demo / Standalone Mode
